@@ -11,7 +11,7 @@ class ParamStore:
 
 
 class UserParameter:
-
+    pass
 
 class Quam:
     def __init__(self) -> None:
