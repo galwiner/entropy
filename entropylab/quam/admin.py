@@ -85,20 +85,20 @@ class QuaElement(Element,ABC):
     def make_qua_component(self):
         pass
 class Transmon(QuaElement):
-    def __init__(self, name:str, *args) -> None:
-        self.args = args 
+    def __init__(self, name:str, **kwargs) -> None:
+        self.__dict__.update(kwargs)
         super().__init__(name)
         
     def make_qua_component(self):        
-        return qua_components.Transmon(*self.args)
+        return qua_components.Transmon(self.name, self.I, self.Q, self.intermediate_frequency)
 
 class FluxTunableTransmon(QuaElement):
-    def __init__(self, name:str, *args) -> None:
-        self.args = args 
+    def __init__(self, name:str, **kwargs) -> None:
+        self.__dict__.update(kwargs)
         super().__init__(name)
     
     def make_qua_component(self):        
-        return qua_components.FluxTunableTransmon(*self.args)
+        return qua_components.FluxTunableTransmon(self.name, self.I, self.Q, self.intermediate_frequency)
 
 
 class QuamAdmin():
@@ -108,15 +108,20 @@ class QuamAdmin():
         self.elements = DotDict()
         self.name=name
 
-    def add(self, name:str, element: Element):
-        self.elements[name]=element
+    def add(self, element: Element):
+        self.elements[element.name]=element
     
-    def add_parameter(self, name:str, val:Any,persistent = True):
+    def add_parameter(self, name:str, val:Any, persistent:bool = True):
         if persistent:
             self._paramStore._params[name] = val
         self._configVar.set(name=val)
 
     def commit(self,label:str=None):
         self._paramStore.commit(label)
+
+    @property
+    def params(self):
+        return self._paramStore
+        
 
 

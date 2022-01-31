@@ -13,8 +13,8 @@ def test_resonator_spectroscopy():
     controller_name = 'cont1'
     cont = qua_components.Controller(controller_name)
     
-    admin.add_parameter('xmon_if', default=1e6,persistent = False))
-    
+    admin.add_parameter('xmon_if', val=1e6, persistent=True)
+
     admin.add(Transmon('xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
                        intermediate_frequency=admin.params.xmon_if))
     
@@ -26,7 +26,8 @@ def test_resonator_spectroscopy():
     # admin.add(user_parameter('ro_duration'))
     # admin.add(user_parameter('pi_wf_samples'))
 
-    xmon = Transmon(name='xmon', I=admin.cont1.analog_output(2), Q=admin.cont1.analog_output(3),
+
+    xmon = Transmon(name='xmon', I=cont.analog_output(2), Q=cont.analog_output(3),
                     intermediate_frequency=admin.params.xmon_if)
 
     xmon.mixer = Mixer(name='xmon_mixer', intermediate_frequency=admin.params.xmon_if,
@@ -160,3 +161,4 @@ def test_resonator_spectroscopy():
 
 #     quam.qua_executor.run(prog)
 
+test_resonator_spectroscopy()
