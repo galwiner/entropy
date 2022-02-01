@@ -182,8 +182,6 @@ def test_resonator_spectroscopy_separated():
                            lo_frequency=admin.config_vars.parameter("xmon_lo"),
                            correction=Matrix2x2([[1, 0], [0, 1]]))
 
-        #admin.add()
-        
         xmon.add(Operation(ControlPulse("pi_pulse", 
                                         [ArbitraryWaveform('wf_ramp', np.linspace(-0.5, 0.5, 1000)), 
                                          zero_wf],
@@ -215,8 +213,18 @@ def test_resonator_spectroscopy_separated():
 
         admin.add(ror)
         
-        print(admin.config_vars.values.keys())
-        print(admin._paramStore._params)
+        #print(admin.config_vars.values.keys())
+
+        admin._paramStore['xmon_if'] = 10e6
+        admin._paramStore['xmon_lo'] = 10e6
+        admin._paramStore['pi_wf_samples'] = list(np.random.rand(1000))
+        admin._paramStore['ror_if'] = 1e6
+        admin._paramStore['ror_lo'] = 1e6
+        admin._paramStore['ro_amp'] = 1e-2
+        admin._paramStore['ro_duration'] = 200
+        #print(admin._paramStore._params)
+
+        print(admin.build_qua_config())
 
 
     def test_oracle(oracle):
@@ -267,3 +275,4 @@ def test_resonator_spectroscopy_separated():
 
     assert True
 
+test_resonator_spectroscopy_separated()

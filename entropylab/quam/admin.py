@@ -113,8 +113,8 @@ class QuamAdmin():
     def build_qua_config(self):
         cb = ConfigBuilder()
         self.config_vars.set(**self._paramStore._params)
-        for k, obj in self.config_builder_objects:
-            cb.add(obj)
+        for k in self.config_builder_objects.keys():
+            cb.add(self.config_builder_objects[k])
         return cb.build()
         
         
