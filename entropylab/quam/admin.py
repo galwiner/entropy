@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any
+from attr import attr
 from qualang_tools.config import ConfigBuilder as cb
 from qualang_tools.config import components as qua_components 
 from tomlkit import value
@@ -80,17 +81,42 @@ class QuaElement(Element,ABC):
 
     def __init__(self, name:str) -> None:
         super().__init__(name)
+        self._qua_object = self._qua_component_builder()
     
-    @abstractmethod
+    
+    def add(name,obj):
+        if issubclass(ConfigBuilderComponent):
+            setattr(self._qua_object,name,obj)
+            
+        elif issubclass(QuamComponent):
+            setattr(self,name,obj)
+
+    def add_qua_object(self,qua_object:qua_components.Element):
+        # for k in qua_object.__dict__.keys():
+        #     if hasattr(self, k):
+        #         qua_object.k = self.k
+        self.qua_object = qua_object
+    def add_qua_component(self,name,qua_component):
+        setattr(self.qua_object,name,qua_component)
+    
     def make_qua_component(self):
+        for attribute in self.__dict__.keys():
+            if hasattr(self.qua_object,attribute):
+                setattr(self.qua_object,attribute,getattr(self,attribute))
+
+    @abstractmethod
+    def _qua_component_builder(self):
         pass
 class Transmon(QuaElement):
     def __init__(self, name:str, **kwargs) -> None:
         self.__dict__.update(kwargs)
         super().__init__(name)
         
-    def make_qua_component(self):        
-        return qua_components.Transmon(self.name, self.I, self.Q, self.intermediate_frequency)
+        
+    def _qua_component_builder(self):
+        qua_object = qua_components.Transmon(self.name, self.I, self.Q, self.intermediate_frequency)
+        self.add_qua_object(qua_object)
+        return qua_object
 
 class FluxTunableTransmon(QuaElement):
     def __init__(self, name:str, **kwargs) -> None:
