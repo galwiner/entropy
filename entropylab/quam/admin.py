@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any
 from attr import attr
-from qualang_tools.config import ConfigBuilder as cb
-from qualang_tools.config import components as qua_components 
+from qualang_tools.config import ConfigBuilder
+from qualang_tools.config.parameters import ConfigVar
+from qualang_tools.config import components as qua_components
 from tomlkit import value
 from entropylab.quam.param_store import InProcessParamStore
 from qualang_tools.config.parameters import ConfigVar
@@ -58,85 +59,46 @@ class UserParameter:
 # ParamStore['this'] = 'that'
 
 
-
-# cup_of_water = Element()
-
-# cup_of_water.add(Heater)
-# cup_of_water.add(TempProbe)
-
-
-
 #this class represents an entity that can control  instruments    
-class Element(ABC):
+class QuamElement(ABC):
     def __init__(self,name:str) -> None:
         self.name=name
-        self.params = DotDict()
+        self._configBuilderComponents = []
+        #self.params = DotDict()
         self.instruments = DotDict()
 
+class QuamTransmon(qua_components.Transmon):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # print(kwargs)
+        #super(QuamElement).__init__(kwargs['name'])
+                
 
 
-#this class represents an entity that has both a QUA controller and other instruments
-#in other words: a QUA element has a ConfigBuilder object 
-class QuaElement(Element,ABC):
-
-    def __init__(self, name:str) -> None:
-        super().__init__(name)
-        self._qua_object = self._qua_component_builder()
-    
-    
-    def add(name,obj):
-        if issubclass(ConfigBuilderComponent):
-            setattr(self._qua_object,name,obj)
-            
-        elif issubclass(QuamComponent):
-            setattr(self,name,obj)
-
-    def add_qua_object(self,qua_object:qua_components.Element):
-        # for k in qua_object.__dict__.keys():
-        #     if hasattr(self, k):
-        #         qua_object.k = self.k
-        self.qua_object = qua_object
-    def add_qua_component(self,name,qua_component):
-        setattr(self.qua_object,name,qua_component)
-    
-    def make_qua_component(self):
-        for attribute in self.__dict__.keys():
-            if hasattr(self.qua_object,attribute):
-                setattr(self.qua_object,attribute,getattr(self,attribute))
-
-    @abstractmethod
-    def _qua_component_builder(self):
-        pass
-class Transmon(QuaElement):
-    def __init__(self, name:str, **kwargs) -> None:
-        self.__dict__.update(kwargs)
-        super().__init__(name)
         
         
-    def _qua_component_builder(self):
-        qua_object = qua_components.Transmon(self.name, self.I, self.Q, self.intermediate_frequency)
-        self.add_qua_object(qua_object)
-        return qua_object
-
-class FluxTunableTransmon(QuaElement):
-    def __init__(self, name:str, **kwargs) -> None:
-        self.__dict__.update(kwargs)
-        super().__init__(name)
-    
-    def make_qua_component(self):        
-        return qua_components.FluxTunableTransmon(self.name, self.I, self.Q, self.intermediate_frequency)
 
 
 class QuamAdmin():
+    
     def __init__(self,name:str = None,path='.entropy/paramStore.db') -> None:
         self._paramStore = ParamStoreConnector.connect(path)
-        self._configVar = ConfigVar()
+        self.config_vars = ConfigVar()
         self.elements = DotDict()
-        self.name=name
+        self.config_builder_objects = DotDict()
+        self.name = name
+        self._cb_types = (qua_components.Element, qua_components.ElementCollection,
+                          qua_components.Waveform, qua_components.Controller, qua_components.Mixer,
+                          qua_components.IntegrationWeights, qua_components.Pulse)
 
-    def add(self, element: Element):
-        self.elements[element.name]=element
-    
+    def add(self, element):
+        if isinstance(element, QuamElement):
+            self.elements[element.name] = element
+            self.config_builder_objects[element.name] = element
+            # .config_builder_objects[element.name] = element
+        # elif isinstance(element,calib_data):
+        #     self.config_builder_objects[element.name] = element
+
     def add_parameter(self, name:str, val:Any, persistent:bool = True):
         if persistent:
             self._paramStore._params[name] = val
@@ -148,6 +110,14 @@ class QuamAdmin():
     @property
     def params(self):
         return self._paramStore
+
+    def build_qua_config(self):
+        cb = ConfigBuilder()
+        self.config_vars.set(**self._paramStore._params)
+        for k, obj in self.config_builder_objects:
+            cb.add(obj)
+        return cb.build()
+        
         
 
 
