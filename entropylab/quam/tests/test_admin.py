@@ -170,7 +170,7 @@ def test_resonator_spectroscopy_separated():
 
         controller_name = 'cont1'
         cont = Controller(controller_name)
-        
+        zero_wf = ConstantWaveform('wf_zero', 0)
         #admin.add_parameter('xmon_if', val=1e6, persistent=True)
         admin.add(cont)
 
@@ -186,17 +186,17 @@ def test_resonator_spectroscopy_separated():
         
         xmon.add(Operation(ControlPulse("pi_pulse", 
                                         [ArbitraryWaveform('wf_ramp', np.linspace(-0.5, 0.5, 1000)), 
-                                         ConstantWaveform('wf_zero', 0)],
+                                         zero_wf],
                                         1000)))
         
         xmon.add(Operation(ControlPulse("opt_pi_pulse",
                                         [ArbitraryWaveform('pi_wf_opt', admin.config_vars.parameter("pi_wf_samples")),
-                                         ConstantWaveform('wf_zero', 0)],
+                                         zero_wf],
                                         1000)))
 
 
         admin.add(xmon)
-        const_wf = ConstantWaveform('wf_zero', 0)
+
         ror = ReadoutResonator('ror',
                                [cont.analog_output(4), cont.analog_output(5)],
                                [cont.analog_input(1), cont.analog_input(2)],
@@ -207,7 +207,7 @@ def test_resonator_spectroscopy_separated():
                           correction=Matrix2x2([[1, 0], [0, 1]]))  # TODO: add default correction matrix
         ror.add(Operation(MeasurePulse('readout_pulse', 
                                        [ConstantWaveform('readout_wf', admin.config_vars.parameter("ro_amp")),
-                                        ConstantWaveform('zero_wf', 0.0)],
+                                        zero_wf],
                                        admin.config_vars.parameter("ro_duration"))))
 
         admin.add(ror)
@@ -267,4 +267,3 @@ def test_resonator_spectroscopy_separated():
 
     assert True
 
-test_resonator_spectroscopy_separated()

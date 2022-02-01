@@ -67,9 +67,9 @@ class QuamElement(ABC):
         #self.params = DotDict()
         self.instruments = DotDict()
 
-class QuamTransmon(qua_components.Transmon):
+class QuamTransmon(qua_components.Transmon, QuamElement):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super(QuamTransmon, self).__init__(**kwargs)
         # print(kwargs)
         #super(QuamElement).__init__(kwargs['name'])
                 
@@ -94,10 +94,9 @@ class QuamAdmin():
     def add(self, element):
         if isinstance(element, QuamElement):
             self.elements[element.name] = element
-            self.config_builder_objects[element.name] = element
-            # .config_builder_objects[element.name] = element
-        # elif isinstance(element,calib_data):
-        #     self.config_builder_objects[element.name] = element
+            if isinstance(element, self._cb_types):
+                self.config_builder_objects[element.name] = element
+
 
     def add_parameter(self, name:str, val:Any, persistent:bool = True):
         if persistent:
