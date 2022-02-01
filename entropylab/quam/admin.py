@@ -70,10 +70,10 @@ class QuamElement(ABC):
 class QuamTransmon(qua_components.Transmon, QuamElement):
     def __init__(self, **kwargs):
         super(QuamTransmon, self).__init__(**kwargs)
-        # print(kwargs)
-        #super(QuamElement).__init__(kwargs['name'])
                 
-
+class QuamReadoutResonator(qua_components.ReadoutResonator, QuamElement):
+    def __init__(self, **kwargs):
+        super(QuamReadoutResonator, self).__init__(**kwargs)
 
         
         

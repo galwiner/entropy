@@ -1,5 +1,5 @@
 from qm.qua import *
-from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmon
+from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmon, QuamReadoutResonator
 from qualang_tools.config.components import *
 
 import numpy as np
@@ -197,23 +197,23 @@ def test_resonator_spectroscopy_separated():
 
         admin.add(xmon)
 
-        ror = ReadoutResonator('ror',
-                               [cont.analog_output(4), cont.analog_output(5)],
-                               [cont.analog_input(1), cont.analog_input(2)],
-                               intermediate_frequency=admin.config_vars.parameter("ror_if"))
+        ror = QuamReadoutResonator(name='ror',
+                                   outputs=[cont.analog_output(4), cont.analog_output(5)],
+                                   inputs=[cont.analog_input(1), cont.analog_input(2)],
+                                   intermediate_frequency=admin.config_vars.parameter("ror_if"))
         ror.mixer = Mixer(name='ror_mixer', 
                           intermediate_frequency=admin.config_vars.parameter("ror_if"),
                           lo_frequency=admin.config_vars.parameter("ror_lo"),
                           correction=Matrix2x2([[1, 0], [0, 1]]))  # TODO: add default correction matrix
-        ror.add(Operation(MeasurePulse('readout_pulse', 
-                                       [ConstantWaveform('readout_wf', admin.config_vars.parameter("ro_amp")),
-                                        zero_wf],
-                                       admin.config_vars.parameter("ro_duration"))))
+        ro_pulse = MeasurePulse('readout_pulse',
+                                [ConstantWaveform('readout_wf', admin.config_vars.parameter("ro_amp")),
+                                 zero_wf],
+                                admin.config_vars.parameter("ro_duration"))
+        ro_pulse.add(IntegrationWeights('w1', cosine=[1], sine=[0]))
+        ro_pulse.add(IntegrationWeights('w2', cosine=[0], sine=[1]))
+        ror.add(Operation(ro_pulse))
 
         admin.add(ror)
-
-        admin.add(IntegrationWeights('w1', cosine=[1], sine=[0]))
-        admin.add(IntegrationWeights('w2', cosine=[0], sine=[1]))
         
         print(admin.config_vars.values.keys())
         print(admin._paramStore._params)
