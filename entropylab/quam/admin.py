@@ -12,15 +12,12 @@ from qualang_tools.config.parameters import ConfigVar
 from entropylab.quam.utils import DotDict
 
 
-
-
-
-
 class QCONTROLLERS(Enum):
     OPX = auto()
     OPXPlus = auto()
     OPY = auto()
     OPZ = auto()
+
 
 # class Quam:
 
@@ -29,15 +26,16 @@ class QCONTROLLERS(Enum):
 #         self._resources = LabResources(db=path)
 
 
-def quam_init(path='.',name = None):
+def quam_init(path='.', name=None):
     # this function initializes the quam system (it will be part of the quam)
 
     # quam = Quam(path,name)
-    quam =None
-    admin = QuamAdmin(path,name)
+    quam = None
+    admin = QuamAdmin(path, name)
     # oracle = QuamOracle(path,name)
-    oracle =None
+    oracle = None
     return admin, quam, oracle
+
 
 # def create_quam(name,path,**kwargs):
 #     #mk param store
@@ -48,40 +46,61 @@ class ParamStoreConnector:
     @staticmethod
     def connect(path) -> InProcessParamStore:
         return InProcessParamStore(path)
+
+
 @dataclass
 class UserParameter:
-
     key: str
-    value 
+    value
 
 # p = UserParameter('this','that')
+
 
 # ParamStore['this'] = 'that'
 
 
-#this class represents an entity that can control  instruments    
+# this class represents an entity that can control  instruments
 class QuamElement(ABC):
-    def __init__(self,name:str) -> None:
-        self.name=name
+    def __init__(self, name: str) -> None:
+        print('here')
+        self.name = name
         self._configBuilderComponents = []
-        #self.params = DotDict()
+        # self.params = DotDict()
         self.instruments = DotDict()
+
+
+def quam_component_facotry(qua_component_class,name):
+    def constructor(self, **kwargs):
+        print('ctor')
+        nonlocal newcls
+        super(newcls.__class__, self).__init__(**kwargs)
+
+    newcls =type(name, (qua_component_class,QuamElement), {'__init__': constructor})
+    return newcls
+
+a=quam_component_facotry(qua_components.Transmon,'QuamTransmon')
+
+cont  = qua_components.Controller(name='cont')
+
+b=a(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
+                            intermediate_frequency=50)
+
+
 
 class QuamTransmon(qua_components.Transmon, QuamElement):
     def __init__(self, **kwargs):
         super(QuamTransmon, self).__init__(**kwargs)
-                
+a=QuamTransmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
+                            intermediate_frequency=50)
+
 class QuamReadoutResonator(qua_components.ReadoutResonator, QuamElement):
     def __init__(self, **kwargs):
         super(QuamReadoutResonator, self).__init__(**kwargs)
 
-        
-        
-
 
 class QuamAdmin():
-    
-    def __init__(self,name:str = None,path='.entropy/paramStore.db') -> None:
+
+    def __init__(self, name: str = None, path='.entropy/paramStore.db') -> None:
         self._paramStore = ParamStoreConnector.connect(path)
         self.config_vars = ConfigVar()
         self.elements = DotDict()
@@ -97,13 +116,12 @@ class QuamAdmin():
             if isinstance(element, self._cb_types):
                 self.config_builder_objects[element.name] = element
 
-
-    def add_parameter(self, name:str, val:Any, persistent:bool = True):
+    def add_parameter(self, name: str, val: Any, persistent: bool = True):
         if persistent:
             self._paramStore._params[name] = val
         self._configVar.set(name=val)
 
-    def commit(self,label:str=None):
+    def commit(self, label: str = None):
         self._paramStore.commit(label)
 
     @property
@@ -116,7 +134,3 @@ class QuamAdmin():
         for k in self.config_builder_objects.keys():
             cb.add(self.config_builder_objects[k])
         return cb.build()
-        
-        
-
-
