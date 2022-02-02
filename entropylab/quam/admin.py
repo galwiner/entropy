@@ -60,9 +60,8 @@ class UserParameter:
 
 
 # this class represents an entity that can control  instruments
-class QuamElement:
+class QuamElement(ABC):
     def __init__(self, **kwargs):
-        self.name = kwargs["name"]
         self._configBuilderComponents = []
         # self.params = DotDict()
         self.instruments = DotDict()

@@ -169,8 +169,7 @@ def test_resonator_spectroscopy_separated():
 
     def test_admin(admin):
 
-        controller_name = 'cont1'
-        cont = Controller(controller_name)
+        cont = QuamController(name='cont1')
         zero_wf = ConstantWaveform('wf_zero', 0)
         #admin.add_parameter('xmon_if', val=1e6, persistent=True)
         admin.add(cont)
@@ -193,7 +192,6 @@ def test_resonator_spectroscopy_separated():
                                          zero_wf],
                                         1000)))
 
-        print(xmon.__dict__)
         admin.add(xmon)
 
         ror = QuamReadoutResonator(name='ror',
