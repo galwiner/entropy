@@ -2,7 +2,7 @@ from qm.qua import *
 from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmon,\
                                   QuamReadoutResonator, QuamController
 from qualang_tools.config.components import *
-
+from entropylab.quam.dummy_driver import DummyInst
 import numpy as np
 
 
@@ -120,7 +120,15 @@ def test_resonator_spectroscopy_separated():
         ror.add(Operation(ro_pulse))
 
         admin.add(ror)
-        
+
+        # admin.save_to_paramStore()
+        # admin.add_instrument(name="flux_driver", class_name=DummyInst)
+        #
+        #
+        # admin.xmon.add_attribute('flux', admin.flux_driver.v_from_MHz)
+        #
+        #
+        #
         #print(admin.config_vars.values.keys())
 
         admin._paramStore['xmon_if'] = 10e6
@@ -129,10 +137,10 @@ def test_resonator_spectroscopy_separated():
         admin._paramStore['ror_if'] = 1e6
         admin._paramStore['ror_lo'] = 1e6
         admin._paramStore['ro_amp'] = 1e-2
-        admin._paramStore['ro_duration'] = 200
+        admin._paramStore['ro_duration'] = 200e-9
         #print(admin._paramStore._params)
 
-        #print(admin.build_qua_config())
+        print(admin.build_qua_config())
 
 
     def test_oracle(oracle):
@@ -152,10 +160,12 @@ def test_resonator_spectroscopy_separated():
         quam.params.ror_if = 1e6
         quam.params.ror_amp = 0.5
         quam.params.ror_duration = 1000
+        # quam.commit(label='commit')
 
         f_start = int(10e6)
         f_end = int(50e6)
         df = int(1e6)
+        # quam.xmon.flux = 1  # in MHz
 
         with program() as prog:
             f = declare(int)

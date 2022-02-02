@@ -7,11 +7,11 @@ from qualang_tools.config import ConfigBuilder
 from qualang_tools.config.parameters import ConfigVar
 from qualang_tools.config import components as qua_components
 from tomlkit import value
+
 from entropylab import LabResources, SqlAlchemyDB
 from entropylab.quam.param_store import InProcessParamStore
 from qualang_tools.config.parameters import ConfigVar
 from entropylab.quam.utils import DotDict
-
 
 
 def quam_init(path='.', name=None):
@@ -24,6 +24,7 @@ def quam_init(path='.', name=None):
     oracle = None
     return admin, quam, oracle
 
+
 class ParamStoreConnector:
     @staticmethod
     def connect(path) -> InProcessParamStore:
@@ -31,16 +32,80 @@ class ParamStoreConnector:
 
 
 # this class represents an entity that can control  instruments
-class QuamElement(ABC):
-    def __init__(self, **kwargs):
+class QuamElement:
+    def __init__(self, name: str) -> None:
+        print('here')
+        self.name = name
         self._configBuilderComponents = []
         # self.params = DotDict()
         self.instruments = DotDict()
-        super().__init__(**kwargs)
 
-cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
-for obj in cb_objs:
-    globals()["Quam"+obj] = type("Quam"+obj, (QuamElement, getattr(qua_components, obj)), {})
+
+def quam_component_facotry(qua_component_class, name):
+    def constructor(self, **kwargs):
+        nonlocal newcls
+        super(QuamElement, self).__init__()
+        super(newcls, self).__init__(**kwargs)
+
+    newcls = type(name, (qua_component_class, QuamElement), {'__init__': constructor})
+    return newcls
+
+
+a = quam_component_facotry(qua_components.Transmon, 'QuamTransmon')
+
+cont = qua_components.Controller(name='cont')
+
+b = a(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
+      intermediate_frequency=50)
+
+
+)
+
+
+class MyClass:
+    def __init__(self):
+        self.collection1 = DotDict()
+        self.collection2 = DotDict()
+
+    def _find(self,name:str):
+        if name in self.collection1.keys():
+            self.collection1[name]
+        elif name in self.collection2.keys():
+            self.collection2[name]
+
+
+    def __getattribute__(self, name: str) -> Any:
+        print(name)
+        return super().__getattribute__(name)
+        if hasattr(value, 'keys'):
+            value = DotDict(value)
+        if name in self.collection1.keys():
+            self.collection1[name]
+        elif name in self.collection2.keys():
+            self.collection2[name]
+
+my= MyClass()
+my.collection1.a=1
+my.collection2.b=2
+print(my.a)
+print(my.b)
+
+class QuamTransmon(QuamElement, qua_components.Transmon):
+    def __init__(self, **kwargs):
+        super(QuamTransmon, self).__init__(**kwargs)
+        super(QuamElement, self).__init__()
+
+
+kwargs = {'name': 'xmon', 'I': cont.analog_output(1), 'Q': cont.analog_output(2),
+          'intermediate_frequency': 50}
+
+a = QuamTransmon(**kwargs)
+
+
+class QuamReadoutResonator(qua_components.ReadoutResonator, QuamElement):
+    def __init__(self, **kwargs):
+        super(QuamReadoutResonator, self).__init__(**kwargs)
+
 
 class QuamAdmin():
 
@@ -50,7 +115,7 @@ class QuamAdmin():
         self.elements = DotDict()
         self.config_builder_objects = DotDict()
         self.name = name
-        # self.instruments = LabResources(SqlAlchemyDB(path))
+        self.instruments = LabResources(SqlAlchemyDB(path))
         self._cb_types = (qua_components.Element, qua_components.ElementCollection,
                           qua_components.Waveform, qua_components.Controller, qua_components.Mixer,
                           qua_components.IntegrationWeights, qua_components.Pulse)
@@ -80,15 +145,20 @@ class QuamAdmin():
             cb.add(self.config_builder_objects[k])
         return cb.build()
 
-#     def add_instrument(self, name, class_name, args, kwargs):
-#         self.instruments.register_resource(name, class_name, args, kwargs)
-#         setattr(self,name,WrapperForDriver(class_name,name))
-#
-# class WrapperForDriver:
-#
-#     def __init__(self,class_name,instrument_name) -> None:
-#         super().__init__()
-#
-#     def __getattribute__(self, name: str) -> Any:
-#         return FunctionInfo(class_name,instrument_name,name)
-# #FunctionInfo -> dictionary with instrument name, function names, parameter names
+        #inside add_instrument use labResources
+    def add_instrument(self,name,instrument):
+        self.instruments.register_resource(name,instrument)
+
+    admin.add_instrument(name="flux_driver", DummyInst)
+
+        def mySetter(val):
+            def volt_from_MHZ(val):
+                return ((val + 3) /12)
+            admin.flux_driver.v = volt_from_MHZ(val)
+
+        xmon.add_attribute('flux',admin.flux_driver.v_from_MHz)
+
+        admin.add(xmon)
+        admin.save_to_store()
+
+        quam.xmon.flux = 1
