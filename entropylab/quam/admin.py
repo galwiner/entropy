@@ -60,43 +60,17 @@ class UserParameter:
 
 
 # this class represents an entity that can control  instruments
-class QuamElement(ABC):
-    def __init__(self, name: str) -> None:
-        print('here')
-        self.name = name
+class QuamElement:
+    def __init__(self, **kwargs):
+        self.name = kwargs["name"]
         self._configBuilderComponents = []
         # self.params = DotDict()
         self.instruments = DotDict()
+        super().__init__(**kwargs)
 
-
-def quam_component_facotry(qua_component_class,name):
-    def constructor(self, **kwargs):
-        print('ctor')
-        nonlocal newcls
-        super(newcls.__class__, self).__init__(**kwargs)
-
-    newcls =type(name, (qua_component_class,QuamElement), {'__init__': constructor})
-    return newcls
-
-a=quam_component_facotry(qua_components.Transmon,'QuamTransmon')
-
-cont  = qua_components.Controller(name='cont')
-
-b=a(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
-                            intermediate_frequency=50)
-
-
-
-class QuamTransmon(qua_components.Transmon, QuamElement):
-    def __init__(self, **kwargs):
-        super(QuamTransmon, self).__init__(**kwargs)
-a=QuamTransmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
-                            intermediate_frequency=50)
-
-class QuamReadoutResonator(qua_components.ReadoutResonator, QuamElement):
-    def __init__(self, **kwargs):
-        super(QuamReadoutResonator, self).__init__(**kwargs)
-
+cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
+for obj in cb_objs:
+    globals()["Quam"+obj] = type("Quam"+obj, (QuamElement, getattr(qua_components, obj)), {})
 
 class QuamAdmin():
 

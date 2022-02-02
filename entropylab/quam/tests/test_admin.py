@@ -1,5 +1,6 @@
 from qm.qua import *
-from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmon, QuamReadoutResonator
+from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmon,\
+                                  QuamReadoutResonator, QuamController
 from qualang_tools.config.components import *
 
 import numpy as np
@@ -192,7 +193,7 @@ def test_resonator_spectroscopy_separated():
                                          zero_wf],
                                         1000)))
 
-
+        print(xmon.__dict__)
         admin.add(xmon)
 
         ror = QuamReadoutResonator(name='ror',
@@ -224,7 +225,7 @@ def test_resonator_spectroscopy_separated():
         admin._paramStore['ro_duration'] = 200
         #print(admin._paramStore._params)
 
-        print(admin.build_qua_config())
+        #print(admin.build_qua_config())
 
 
     def test_oracle(oracle):
