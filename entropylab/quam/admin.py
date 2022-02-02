@@ -20,8 +20,8 @@ def quam_init(path='.', name=None):
     # quam = Quam(path,name)
     quam = None
     admin = QuamAdmin(path, name)
-    # oracle = QuamOracle(path,name)
-    oracle = None
+    oracle = QuamOracle(path,name)
+    #oracle = None
     return admin, quam, oracle
 
 class ParamStoreConnector:
@@ -92,3 +92,29 @@ class QuamAdmin():
 #     def __getattribute__(self, name: str) -> Any:
 #         return FunctionInfo(class_name,instrument_name,name)
 # #FunctionInfo -> dictionary with instrument name, function names, parameter names
+
+class QuamOracle():
+    
+    def __init__(self, name: str = None, path='.entropy/paramStore.db') -> None:
+        self._paramStore = ParamStoreConnector.connect(path)
+        self.elements = DotDict()
+        self.config_builder_objects = DotDict()
+        self.config_vars = None
+        self._config = {}
+
+    @property
+    def get_elements(self):
+        return list(self.elements.keys())
+
+    @property
+    def get_QUA_elements(self):
+        return list(self.config_builder_objects.keys())
+
+    def build_qua_config(self):
+        cb = ConfigBuilder()
+        self.config_vars.set(**self._paramStore._params)
+        print(self.config_vars.values)
+        print(self._paramStore._params)
+        for k in self.config_builder_objects.keys():
+            cb.add(self.config_builder_objects[k])
+        self._config = cb.build()

@@ -139,19 +139,26 @@ def test_resonator_spectroscopy_separated():
         admin._paramStore['ro_amp'] = 1e-2
         admin._paramStore['ro_duration'] = 200e-9
         #print(admin._paramStore._params)
+        #print(admin.build_qua_config())
+        admin.commit("set config vars")
 
-        print(admin.build_qua_config())
+        return admin.elements, admin.config_builder_objects, admin.config_vars
 
 
-    def test_oracle(oracle):
+    def test_oracle(oracle, elements, config_objects, config_vars):
     
-
+        oracle.elements = elements
+        oracle.config_builder_objects = config_objects
+        oracle.config_vars = config_vars
         # Run a resonator spectroscopy as a user
-        #assert oracle.get_elements
-        assert oracle.get_QUA_elements == ['ror', 'xmon']
-        assert oracle.get_operations('ror') == ['readout_pulse']
-        assert oracle.get_iw == ['w1', 'w2']
-        assert oracle.get_user_params == ['ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if']
+        assert set(oracle.get_elements) == set(['cont1', 'xmon', 'ror'])
+        assert set(oracle.get_QUA_elements) == set(['cont1','ror', 'xmon'])
+   
+        ## TODO: test if paramStore contains the config vars committed by the admin
+        oracle.build_qua_config()
+        #assert oracle.get_operations('ror') == ['readout_pulse']
+        #assert oracle.get_iw == ['w1', 'w2']
+        #assert oracle.get_user_params == ['ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if']
 
     # User
     def test_quam(quam):
@@ -187,8 +194,8 @@ def test_resonator_spectroscopy_separated():
     
         assert quam.qua_executor.results('last').names == ['I_out', 'Q_out']
 
-    test_admin(admin)
-    #test_oracle(oracle)
+    elements, config_objects, config_vars = test_admin(admin)
+    test_oracle(oracle, elements, config_objects, config_vars)
     #test_quam(quam)
 
     assert True
