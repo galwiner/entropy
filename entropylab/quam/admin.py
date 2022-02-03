@@ -14,14 +14,13 @@ from qualang_tools.config.parameters import ConfigVars
 from entropylab.quam.utils import DotDict
 
 
-def quam_init(path='.', name=None):
+def quam_init(path='.'):
     # this function initializes the quam system (it will be part of the quam)
 
-    # quam = Quam(path,name)
-    quam = None
-    admin = QuamAdmin(path, name)
-    oracle = QuamOracle(path, name)
-    # oracle = None
+    quam = QuamUser(path)
+    admin = QuamAdmin(path)
+    oracle = QuamOracle(path)
+
     return admin, quam, oracle
 
 
@@ -45,19 +44,38 @@ for obj in cb_objs:
     globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
 
 
-class QuamAdmin():
+class QuamBaseClass(ABC):
 
-    def __init__(self, name: str = None, path='.entropy') -> None:
+    def __init__(self, path):
         self.path = path
         self._paramStore = ParamStoreConnector.connect(path)
+        self.config_builder_objects = DotDict()
         self.config_vars = ConfigVars()
         self.elements = DotDict()
-        self.config_builder_objects = DotDict()
-        self.name = name
+
+    def commit(self, label: str = None):
+        return self.params.commit(label)
+
+    @property
+    def params(self):
+        return self._paramStore
+
+    def build_qua_config(self):
+        cb = ConfigBuilder()
+        self.config_vars.set(**self.params._params)
+        for k in self.config_builder_objects.keys():
+            cb.add(self.config_builder_objects[k])
+        return cb.build()
+
+class QuamAdmin(QuamBaseClass):
+
+    def __init__(self, path='.entropy'):
         # self.instruments = LabResources(SqlAlchemyDB(path))
         self._cb_types = (qua_components.Element, qua_components.ElementCollection,
                           qua_components.Waveform, qua_components.Controller, qua_components.Mixer,
                           qua_components.IntegrationWeights, qua_components.Pulse)
+
+        super().__init__(path)
 
     def add(self, element):
         if isinstance(element, QuamElement):
@@ -67,22 +85,8 @@ class QuamAdmin():
 
     def add_parameter(self, name: str, val: Any, persistent: bool = True):
         if persistent:
-            self._paramStore._params[name] = val
+            self.params._params[name] = val
         self.config_vars.set(name=val)
-
-    def commit(self, label: str = None):
-        self._paramStore.commit(label)
-
-    @property
-    def params(self):
-        return self._paramStore
-
-    def build_qua_config(self):
-        cb = ConfigBuilder()
-        self.config_vars.set(**self._paramStore._params)
-        for k in self.config_builder_objects.keys():
-            cb.add(self.config_builder_objects[k])
-        return cb.build()
 
     def save(self):
         with open(self.path + '/pickle.pkl', 'wb') as f:
@@ -102,28 +106,35 @@ class QuamAdmin():
 #         return FunctionInfo(class_name,instrument_name,name)
 # #FunctionInfo -> dictionary with instrument name, function names, parameter names
 
-class QuamOracle():
+class QuamOracle(QuamBaseClass):
 
-    def __init__(self, name: str = None, path='.entropy/paramStore.db') -> None:
-        self._paramStore = ParamStoreConnector.connect(path)
-        self.elements = DotDict()
-        self.config_builder_objects = DotDict()
-        self.config_vars = None
+    def __init__(self, path='.entropy') -> None:
+
         self._config = {}
+        super().__init__(path)
 
     @property
-    def get_elements(self):
+    def element_names(self):
         return list(self.elements.keys())
 
     @property
-    def get_QUA_elements(self):
+    def QUA_element_names(self):
         return list(self.config_builder_objects.keys())
 
-    def build_qua_config(self):
-        cb = ConfigBuilder()
-        self.config_vars.set(**self._paramStore._params)
-        print(self.config_vars.values)
-        print(self._paramStore._params)
-        for k in self.config_builder_objects.keys():
-            cb.add(self.config_builder_objects[k])
-        self._config = cb.build()
+    @property
+    def operations(self, elm_name:str):
+        pass
+
+    @property
+    def user_params(self):
+        pass
+
+    @property
+    def integration_weights(self):
+        pass
+
+
+class QuamUser(QuamBaseClass):
+
+    def __init__(self, path='.entropy'):
+        super().__init__(path)
