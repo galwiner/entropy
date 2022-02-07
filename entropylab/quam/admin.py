@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any
 from attr import attr
-from qualang_tools.config import ConfigBuilder
+from cached_property import cached_property
 
+from qualang_tools.config import ConfigBuilder
 from qualang_tools.config import components as qua_components
 from tomlkit import value
 from entropylab import LabResources, SqlAlchemyDB
@@ -109,8 +110,6 @@ class QuamAdmin(QuamBaseClass):
 class QuamOracle(QuamBaseClass):
 
     def __init__(self, path='.entropy') -> None:
-
-        self._config = {}
         super().__init__(path)
 
     @property
@@ -121,20 +120,27 @@ class QuamOracle(QuamBaseClass):
     def QUA_element_names(self):
         return list(self.config_builder_objects.keys())
 
-    @property
     def operations(self, elm_name:str):
-        pass
+        config = self.config
+        if elm_name in config["elements"].keys():
+            return list(config["elements"][elm_name]["operations"].keys())
 
     @property
     def user_params(self):
-        pass
+        return list(self.config_vars.values.keys())
 
     @property
     def integration_weights(self):
-        pass
+        return list(self.config["integration_weights"].keys())
+
+    @cached_property
+    def config(self):
+        return self.build_qua_config()
 
 
 class QuamUser(QuamBaseClass):
 
     def __init__(self, path='.entropy'):
         super().__init__(path)
+
+    

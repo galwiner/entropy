@@ -46,6 +46,7 @@ dash-bootstrap-components = "^1.0.0"
 waitress = "^2.0.0"
 qualang-tools = "^0.6.5"
 tinydb = "^4.6.1"
+cached-property = "^1.5.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"

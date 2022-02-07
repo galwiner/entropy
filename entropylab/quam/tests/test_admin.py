@@ -115,8 +115,10 @@ def test_resonator_spectroscopy_separated():
                                 [ConstantWaveform('readout_wf', admin.config_vars.parameter("ro_amp")),
                                  zero_wf],
                                 admin.config_vars.parameter("ro_duration"))
-        ro_pulse.add(IntegrationWeights('w1', cosine=[1], sine=[0]))
-        ro_pulse.add(IntegrationWeights('w2', cosine=[0], sine=[1]))
+        ro_pulse.add(Weights(ConstantIntegrationWeights('w1', cosine=1, sine=0, 
+                                                        duration = admin.config_vars.parameter("ro_duration"))))
+        ro_pulse.add(Weights(ConstantIntegrationWeights('w2', cosine=0, sine=1,
+                                                        duration = admin.config_vars.parameter("ro_duration"))))
         ror.add(Operation(ro_pulse))
 
         admin.add(ror)
@@ -139,11 +141,11 @@ def test_resonator_spectroscopy_separated():
         admin.params['ro_amp'] = 1e-2
         admin.params['ro_duration'] = 200e-9
         #print(admin._paramStore._params)
-        #print(admin.build_qua_config())
+        config = admin.build_qua_config()
+        #print(config["integration_weights"])
         commit_id = admin.commit("set config vars")
-        print(commit_id)
+        #print(commit_id)
         admin.params.checkout(commit_id)
-
         return admin.elements, admin.config_builder_objects, admin.config_vars, commit_id
 
 
@@ -156,10 +158,9 @@ def test_resonator_spectroscopy_separated():
         assert set(oracle.element_names) == set(['cont1', 'xmon', 'ror'])
         assert set(oracle.QUA_element_names) == set(['cont1','ror', 'xmon'])
         oracle.params.checkout(c_id)
-        print(oracle.build_qua_config())
-        #assert oracle.operations('ror') == ['readout_pulse']
-        #assert oracle.iw == ['w1', 'w2']
-        #assert oracle.user_params == ['ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if']
+        assert oracle.operations('ror') == ['readout_pulse']
+        assert oracle.integration_weights == ['w1', 'w2']
+        assert set(oracle.user_params) == set(['pi_wf_samples','ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if', 'ror_lo'])
 
     # User
     def test_quam(quam):
