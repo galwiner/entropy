@@ -73,7 +73,7 @@ import numpy as np
 
 def test_resonator_spectroscopy_separated():
 
-    path = 'entropylab/quam/tests/tests_cache/quam_db.db'
+    path = 'tests_cache/quam_db.db'
     admin, quam, oracle = quam_init(path)
 
     def test_admin(admin):

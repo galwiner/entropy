@@ -9,7 +9,7 @@ from qualang_tools.config import ConfigBuilder
 from qualang_tools.config import components as qua_components
 from tomlkit import value
 from entropylab import LabResources, SqlAlchemyDB
-from entropylab.quam.param_store import InProcessParamStore
+from entropylab.api.param_store import InProcessParamStore
 from qualang_tools.config.parameters import ConfigVars
 from entropylab.quam.utils import DotDict
 
