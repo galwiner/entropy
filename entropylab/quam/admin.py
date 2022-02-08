@@ -5,10 +5,12 @@ from enum import Enum, auto
 from typing import Any
 from attr import attr
 from cached_property import cached_property
+from tomlkit import value
 
+from qm.QuantumMachinesManager import QuantumMachinesManager
 from qualang_tools.config import ConfigBuilder
 from qualang_tools.config import components as qua_components
-from tomlkit import value
+
 from entropylab import LabResources, SqlAlchemyDB
 from entropylab.api.param_store import InProcessParamStore
 from qualang_tools.config.parameters import ConfigVars
@@ -140,7 +142,22 @@ class QuamOracle(QuamBaseClass):
 
 class QuamUser(QuamBaseClass):
 
-    def __init__(self, path='.entropy'):
+    def __init__(self, path='.entropy', host="127.0.0.1"):
         super().__init__(path)
+        self.host = host
 
+    @property
+    def config(self):
+        return self.build_qua_config()
+
+    def execute_qua(self, prog, use_simulator=False, simulation_config=None):
+        qmm = QuantumMachinesManager(host=self.host)
+        qmm.close_all_quantum_machines()
+        if use_simulator:
+            job = qmm.simulate(self.config, prog, simulation_config)
+        else:
+            job = qmm.execute(self.config, prog, simulation_config)
+        job.result_handles.wait_for_all_values()
+        return job
+        
     

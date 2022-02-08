@@ -4,6 +4,7 @@ from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmo
 from qualang_tools.config.components import *
 from entropylab.quam.dummy_driver import DummyInst
 import numpy as np
+from qm import SimulationConfig
 
 
 # def test_flux_tunable_qubit():
@@ -161,15 +162,23 @@ def test_resonator_spectroscopy_separated():
         assert oracle.operations('ror') == ['readout_pulse']
         assert oracle.integration_weights == ['w1', 'w2']
         assert set(oracle.user_params) == set(['pi_wf_samples','ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if', 'ror_lo'])
-
+        return oracle.elements, oracle.config_builder_objects, oracle.config_vars, c_id
     # User
-    def test_quam(quam):
+    def test_quam(quam, elements, config_objects, config_vars, c_id):
+
+        quam.elements = elements
+        quam.config_builder_objects = config_objects
+        quam.config_vars = config_vars
+        
         quam.params.xmon_lo = 1e9
         quam.params.xmon_if = 1e6
         quam.params.ror_if = 1e6
         quam.params.ror_amp = 0.5
         quam.params.ror_duration = 1000
-        # quam.commit(label='commit')
+        c_id = quam.commit(label='update config vars')
+        quam.params.checkout(c_id)
+
+        #print(quam.config)
 
         f_start = int(10e6)
         f_end = int(50e6)
@@ -183,22 +192,22 @@ def test_resonator_spectroscopy_separated():
             I_str = declare_stream()
             Q_str = declare_stream()
             with for_(f, f_start, f < f_end, f + df):
-                update_frequency(quam.ror, f)
-                measure(quam.ror.readout_pulse, quam.ror, None, demod.full(quam.w1, I), demod.full(quam.w2, Q))
+                update_frequency("ror", f)
+                measure("readout_pulse", "ror", None, demod.full("w1", I), demod.full("w2", Q))
                 save(I, I_str)
                 save(Q, Q_str)
             with stream_processing():
                 I_str.save_all('I_out')
                 Q_str.save_all('Q_out')
 
-        quam.qua_executor.run(prog)
-
-    
+        quam.execute_qua(prog, 
+                         simulation_config=SimulationConfig(duration=10000),
+                         use_simulator=True)
         assert quam.qua_executor.results('last').names == ['I_out', 'Q_out']
 
     elements, config_objects, config_vars, c_id = test_admin(admin)
-    test_oracle(oracle, elements, config_objects, config_vars, c_id)
-    #test_quam(quam)
+    elements, config_objects, config_vars, c_id = test_oracle(oracle, elements, config_objects, config_vars, c_id)
+    test_quam(quam, elements, config_objects, config_vars, c_id)
 
     assert True
 
