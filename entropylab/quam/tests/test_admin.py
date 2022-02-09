@@ -22,7 +22,7 @@ def test_resonator_spectroscopy_separated():
         xmon = QuamTransmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
                             intermediate_frequency=admin.config_vars.parameter("xmon_if"))
 
-        # xmon.lo_frequency = admin.config_vars.parameter("xmon_lo") #TODO: bug in config builder
+        xmon.lo_frequency = admin.config_vars.parameter("xmon_lo")
 
         xmon.mixer = Mixer(name='xmon_mixer', 
                            intermediate_frequency=admin.config_vars.parameter("xmon_if"),
@@ -44,9 +44,10 @@ def test_resonator_spectroscopy_separated():
         admin.add(xmon)
 
         ror = QuamReadoutResonator(name='ror',
-                                   outputs=[cont.analog_output(4), cont.analog_output(5)],
-                                   inputs=[cont.analog_input(1), cont.analog_input(2)],
+                                   inputs=[cont.analog_output(4), cont.analog_output(5)],
+                                   outputs=[cont.analog_input(1), cont.analog_input(2)],
                                    intermediate_frequency=admin.config_vars.parameter("ror_if"))
+        ror.lo_frequency = admin.config_vars.parameter("ror_lo")
         ror.mixer = Mixer(name='ror_mixer', 
                           intermediate_frequency=admin.config_vars.parameter("ror_if"),
                           lo_frequency=admin.config_vars.parameter("ror_lo"),
@@ -60,7 +61,7 @@ def test_resonator_spectroscopy_separated():
         ro_pulse.add(Weights(ConstantIntegrationWeights('w2', cosine=0, sine=1,
                                                         duration = admin.config_vars.parameter("ro_duration"))))
         ror.add(Operation(ro_pulse))
-
+        ror.time_of_flight = 24
         admin.add(ror)
 
         #admin sets some default values just to test himself and see a config can be built.
@@ -114,7 +115,7 @@ def test_resonator_spectroscopy_separated():
         quam.params.xmon_if = 1e6
         quam.params.ror_if = 1e6
         quam.params.ror_amp = 0.5
-        quam.params.ror_duration = 1000
+        quam.params.ro_duration = 1000
 
         c_id = quam.commit(label='update config vars') #user is able to commit to param store
         quam.params.checkout(c_id) #not necessary but shows that checkout is possible
@@ -134,18 +135,20 @@ def test_resonator_spectroscopy_separated():
             Q_str = declare_stream()
             with for_(f, f_start, f < f_end, f + df):
                 update_frequency("ror", f)
-                measure("readout_pulse", "ror", None, demod.full("w1", I), demod.full("w2", Q))
+                measure("readout_pulse", "ror", None, 
+                        demod.full("w1", I, "out1"), demod.full("w2", Q, "out2"))
                 save(I, I_str)
                 save(Q, Q_str)
             with stream_processing():
                 I_str.save_all('I_out')
                 Q_str.save_all('Q_out')
-
-        quam.execute_qua(prog, 
-                         simulation_config=SimulationConfig(duration=10000),
-                         use_simulator=True)
-        assert quam.qua_executor.results('last').names == ['I_out', 'Q_out']
-
+                
+        res = quam.execute_qua(prog, 
+                               simulation_config=SimulationConfig(duration=10000),
+                               use_simulator=True)
+        assert hasattr(res.result_handles, 'I_out')
+        assert hasattr(res.result_handles, 'Q_out')
+        
     elements, config_objects, config_vars, c_id = test_admin(admin)
     elements, config_objects, config_vars, c_id = test_oracle(oracle, elements, config_objects, config_vars, c_id)
     test_quam(quam, elements, config_objects, config_vars, c_id)
