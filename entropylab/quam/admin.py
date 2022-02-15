@@ -1,20 +1,26 @@
 import pickle
+import numpy
 from abc import ABC, abstractmethod
+from munch import Munch
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any
+from typing import Any, Optional
 from attr import attr
 from cached_property import cached_property
 from tomlkit import value
+import jsonpickle
 
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qualang_tools.config import ConfigBuilder
 from qualang_tools.config import components as qua_components
+from qualang_tools.config.components import *
+from qualang_tools.config.primitive_components import *
 
 from entropylab import LabResources, SqlAlchemyDB
-from entropylab.api.param_store import InProcessParamStore
-from qualang_tools.config.parameters import ConfigVars
+from entropylab.api.param_store import InProcessParamStore, ParamStore, MergeStrategy
+from qualang_tools.config.parameters import *
 from entropylab.quam.utils import DotDict
+from munch import Munch
 
 
 def quam_init(path='.'):
@@ -34,11 +40,11 @@ class ParamStoreConnector:
 
 
 # this class represents an entity that can control  instruments
-class QuamElement(ABC):
+class QuamElement(object):
     def __init__(self, **kwargs):
-        self._configBuilderComponents = []
-        # self.params = DotDict()
-        self.instruments = DotDict()
+        #self._configBuilderComponents = []
+        #self.params = Munch()
+        self.instruments = Munch()
         super().__init__(**kwargs)
 
 
@@ -52,23 +58,43 @@ class QuamBaseClass(ABC):
     def __init__(self, path):
         self.path = path
         self._paramStore = ParamStoreConnector.connect(path)
-        self.config_builder_objects = DotDict()
+        self.config_builder_objects = Munch()
+        self._paramStore["quam_elements"]=Munch()
+        self.elements = Munch()
         self.config_vars = ConfigVars()
-        self.elements = DotDict()
-
+    
     def commit(self, label: str = None):
         return self.params.commit(label)
+
+    def merge(self, theirs: Union[Dict, ParamStore],
+             merge_strategy: Optional[MergeStrategy] = MergeStrategy.OURS):
+        self.params.merge(theirs, merge_strategy)
 
     @property
     def params(self):
         return self._paramStore
-
+    
     def build_qua_config(self):
         cb = ConfigBuilder()
-        self.config_vars.set(**self.params._params)
+
+        def without_keys(d, keys):
+            return {x: d[x] for x in d if x not in keys}
+        
+        self.config_vars.set(**without_keys(self.params._params,
+                                            ["config_vars", "quam_elements"]))
         for k in self.config_builder_objects.keys():
             cb.add(self.config_builder_objects[k])
         return cb.build()
+
+    def load(self, c_id):
+        self.params.checkout(c_id)
+        if "quam_elements" in self.params.keys():
+            for (k,v) in self.params["quam_elements"].items():
+                self.config_builder_objects[k] = jsonpickle.decode(v)
+                self.elements[k] = jsonpickle.decode(v)
+        if "config_vars" in self.params.keys():
+            self.config_vars = jsonpickle.decode(self.params["config_vars"])
+            #print(self.config_vars.values.keys())
 
 class QuamAdmin(QuamBaseClass):
 
@@ -92,8 +118,10 @@ class QuamAdmin(QuamBaseClass):
         self.config_vars.set(name=val)
 
     def save(self):
-        with open(self.path + '/pickle.pkl', 'wb') as f:
-            pickle.dump(self, f)
+        for k in self.config_builder_objects.keys():
+            str_obj = jsonpickle.encode(self.config_builder_objects[k])
+            self._paramStore["quam_elements"][k] = str_obj
+        self._paramStore["config_vars"] = jsonpickle.encode(self.config_vars)
 
 
 #     def add_instrument(self, name, class_name, args, kwargs):
@@ -145,6 +173,9 @@ class QuamUser(QuamBaseClass):
     def __init__(self, path='.entropy', host="127.0.0.1"):
         super().__init__(path)
         self.host = host
+        self.elements = Munch()
+        self.pulses = Munch()
+        self.integration_weights = Munch()
 
     @property
     def config(self):
@@ -159,5 +190,15 @@ class QuamUser(QuamBaseClass):
             job = qmm.execute(self.config, prog, simulation_config)
         job.result_handles.wait_for_all_values()
         return job
-        
+
+    def load(self, c_id):
+        super().load(c_id)
+        config = self.config
+        for elm in config["elements"].keys():
+            self.elements[elm] = elm
+        for elm in config["pulses"].keys():
+            self.pulses[elm] = elm
+        for elm in config["integration_weights"].keys():
+            self.integration_weights[elm] = elm
+       
     

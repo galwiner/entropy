@@ -47,6 +47,8 @@ waitress = "^2.0.0"
 qualang-tools = "^0.6.5"
 tinydb = "^4.6.1"
 cached-property = "^1.5.2"
+munch = "^2.5.0"
+objprint = "^0.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"
