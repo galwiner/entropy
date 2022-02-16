@@ -76,12 +76,11 @@ def test_resonator_spectroscopy_separated():
 
         #print(admin._paramStore._params)
         config = admin.build_qua_config() #TODO: add a test that the built config is correct
-        #print(config["integration_weights"])
+        #print(config["waveforms"]["pi_wf_opt"])
         admin.save()
         commit_id = admin.commit("set config vars")
         #print(commit_id)
         admin.params.checkout(commit_id) #checking we can also checkout from the ParamStore
-
         return commit_id #this is a temporary solution for communicating between the three interfaces
 
 
@@ -94,26 +93,22 @@ def test_resonator_spectroscopy_separated():
         assert set(oracle.QUA_element_names) == set(['cont1','ror', 'xmon'])
         commit_list = oracle.params.list_commits('set config vars')
         #oracle.params.checkout(c_id)# make sure checkout from the oracle is possible.
-
         assert oracle.operations('ror') == ['readout_pulse']
         assert oracle.integration_weights == ['w1', 'w2']
         assert set(oracle.user_params) == set(['pi_wf_samples','ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if', 'ror_lo'])
         return c_id #this is a temporary solution for communicating between the three interfaces
     # User
     def test_quam(quam, c_id):
-
+        quam.load(c_id)
         # user sets some parameters
         quam.params.xmon_lo = 1e9
         quam.params.xmon_if = 1e6
         quam.params.ror_if = 1e6
         quam.params.ror_amp = 0.5
         quam.params.ro_duration = 1000
-        quam.load(c_id)
+        
         c_id = quam.commit(label='update config vars') #user is able to commit to param store
-        quam.params.checkout(c_id) #not necessary but shows that checkout is possible
-
-        #print(quam.config)
-
+        quam.save()
         f_start = int(10e6)
         f_end = int(50e6)
         df = int(1e6)
@@ -135,13 +130,13 @@ def test_resonator_spectroscopy_separated():
             with stream_processing():
                 I_str.save_all('I_out')
                 Q_str.save_all('Q_out')
-                
+      
         res = quam.execute_qua(prog, 
                                simulation_config=SimulationConfig(duration=10000),
                                use_simulator=True)
         assert hasattr(res.result_handles, 'I_out')
         assert hasattr(res.result_handles, 'Q_out')
-        
+
     c_id = test_admin(admin)
     c_id = test_oracle(oracle, c_id)
     test_quam(quam, c_id)

@@ -52,6 +52,8 @@ cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
 for obj in cb_objs:
     globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
 
+def without_keys(d, keys):
+    return {x: d[x] for x in d if x not in keys}
 
 class QuamBaseClass(ABC):
 
@@ -59,7 +61,7 @@ class QuamBaseClass(ABC):
         self.path = path
         self._paramStore = ParamStoreConnector.connect(path)
         self.config_builder_objects = Munch()
-        self._paramStore["quam_elements"]=Munch()
+        self._paramStore["config_objects"] = Munch()
         self.elements = Munch()
         self.config_vars = ConfigVars()
     
@@ -76,25 +78,22 @@ class QuamBaseClass(ABC):
     
     def build_qua_config(self):
         cb = ConfigBuilder()
-
-        def without_keys(d, keys):
-            return {x: d[x] for x in d if x not in keys}
-        
         self.config_vars.set(**without_keys(self.params._params,
-                                            ["config_vars", "quam_elements"]))
+                                            ["config_objects"]))
         for k in self.config_builder_objects.keys():
             cb.add(self.config_builder_objects[k])
         return cb.build()
 
     def load(self, c_id):
         self.params.checkout(c_id)
-        if "quam_elements" in self.params.keys():
-            for (k,v) in self.params["quam_elements"].items():
-                self.config_builder_objects[k] = jsonpickle.decode(v)
-                self.elements[k] = jsonpickle.decode(v)
-        if "config_vars" in self.params.keys():
-            self.config_vars = jsonpickle.decode(self.params["config_vars"])
-            #print(self.config_vars.values.keys())
+        (self.config_vars, self.config_builder_objects) = jsonpickle.decode(self.params["config_objects"])
+        for k in self.config_builder_objects.keys():
+            self.elements[k] = self.config_builder_objects[k]
+        self.config_vars.set(**without_keys(self.params._params, ["config_objects"]))
+        
+    def save(self):
+        self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars,
+                                                                self.config_builder_objects))
 
 class QuamAdmin(QuamBaseClass):
 
@@ -116,12 +115,6 @@ class QuamAdmin(QuamBaseClass):
         if persistent:
             self.params._params[name] = val
         self.config_vars.set(name=val)
-
-    def save(self):
-        for k in self.config_builder_objects.keys():
-            str_obj = jsonpickle.encode(self.config_builder_objects[k])
-            self._paramStore["quam_elements"][k] = str_obj
-        self._paramStore["config_vars"] = jsonpickle.encode(self.config_vars)
 
 
 #     def add_instrument(self, name, class_name, args, kwargs):
@@ -157,7 +150,7 @@ class QuamOracle(QuamBaseClass):
 
     @property
     def user_params(self):
-        return list(self.config_vars.values.keys())
+        return list(self.config_vars.params.keys())
 
     @property
     def integration_weights(self):
