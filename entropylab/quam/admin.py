@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from munch import Munch
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, Callable
 from attr import attr
 from cached_property import cached_property
 from tomlkit import value
@@ -58,6 +58,45 @@ def without_keys(d, keys):
     return {x: d[x] for x in d if x not in keys}
 
 
+class InstParameter:
+    def __init__(self, name=None, val=None, setter: Callable = None) -> None:
+
+        self.name = name
+
+        self.dirty: bool = True
+        if setter is not None:
+            self._value = val
+            try:
+                setter(val)
+            except:
+                raise AttributeError(f'Error in initialising Attribute {self.name} with custom setter.')
+            self._setter = setter
+
+
+        self._value = val
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        # @functools.wraps(self._setter)
+        # def setter_wrapper(self,*args,**kwargs):
+        self._value = value
+        if self._setter is not None:
+            self._setter(value)
+
+class InstVars(Munch):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    @property
+    def parameter(self):
+        return self._parameter
+    @parameter.setter
+    def parameter(self, value):
+        self._parameter = value
+
 class QuamBaseClass(ABC):
 
     def __init__(self, path):
@@ -67,6 +106,7 @@ class QuamBaseClass(ABC):
         self._paramStore["config_objects"] = Munch()
         self.elements = Munch()
         self.config_vars = ConfigVars()
+        self.inst_vars = InstVars()
 
     def commit(self, label: str = None):
         return self.params.commit(label)
@@ -116,15 +156,17 @@ class QuamAdmin(QuamBaseClass):
             if isinstance(element, self._cb_types):
                 self.config_builder_objects[element.name] = element
 
-    def add_instrument(self, name: str, resource_class: Type, persistent=True, *args, **kwargs):
-        if persistent:
+    def set_instrument(self, name: str, resource_class: Type, *args, **kwargs):
+        if self._instruments_store.resource_exist(name):
+            self._instruments_store.remove_resource(name)
             self._instruments_store.register_resource(name, resource_class, *args, **kwargs)
         else:
-            self._instruments_store.(name, resource_class, *args, **kwargs)
+            self._instruments_store.register_resource(name, resource_class, *args, **kwargs)
 
         self.instruments[name] = self._instruments_store.get_resource(name)
 
-
+    def remove_instrument(self, name: str):
+        self._instruments_store.remove_resource(name)
 
     def add_parameter(self, name: str, val: Any, persistent: bool = True):
         if persistent:
@@ -184,6 +226,7 @@ class QuamUser(QuamBaseClass):
         self.elements = Munch()
         self.pulses = Munch()
         self.integration_weights = Munch()
+        self._instrument_store = LabResources(SqlAlchemyDB(path))
 
     @property
     def config(self):
