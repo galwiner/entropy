@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from munch import Munch
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Optional, Type
 from attr import attr
 from cached_property import cached_property
 from tomlkit import value
@@ -21,6 +21,7 @@ from entropylab.api.param_store import InProcessParamStore, ParamStore, MergeStr
 from qualang_tools.config.parameters import *
 from entropylab.quam.utils import DotDict
 from munch import Munch
+import os
 
 
 def quam_init(path='.'):
@@ -42,8 +43,8 @@ class ParamStoreConnector:
 # this class represents an entity that can control  instruments
 class QuamElement(object):
     def __init__(self, **kwargs):
-        #self._configBuilderComponents = []
-        #self.params = Munch()
+        # self._configBuilderComponents = []
+        # self.params = Munch()
         self.instruments = Munch()
         super().__init__(**kwargs)
 
@@ -52,30 +53,32 @@ cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
 for obj in cb_objs:
     globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
 
+
 def without_keys(d, keys):
     return {x: d[x] for x in d if x not in keys}
+
 
 class QuamBaseClass(ABC):
 
     def __init__(self, path):
         self.path = path
-        self._paramStore = ParamStoreConnector.connect(path)
+        self._paramStore = ParamStoreConnector.connect(os.path.join(path, "params.db"))
         self.config_builder_objects = Munch()
         self._paramStore["config_objects"] = Munch()
         self.elements = Munch()
         self.config_vars = ConfigVars()
-    
+
     def commit(self, label: str = None):
         return self.params.commit(label)
 
     def merge(self, theirs: Union[Dict, ParamStore],
-             merge_strategy: Optional[MergeStrategy] = MergeStrategy.OURS):
+              merge_strategy: Optional[MergeStrategy] = MergeStrategy.OURS):
         self.params.merge(theirs, merge_strategy)
 
     @property
     def params(self):
         return self._paramStore
-    
+
     def build_qua_config(self):
         cb = ConfigBuilder()
         self.config_vars.set(**without_keys(self.params._params,
@@ -90,15 +93,17 @@ class QuamBaseClass(ABC):
         for k in self.config_builder_objects.keys():
             self.elements[k] = self.config_builder_objects[k]
         self.config_vars.set(**without_keys(self.params._params, ["config_objects"]))
-        
+
     def save(self):
         self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars,
                                                                 self.config_builder_objects))
 
+
 class QuamAdmin(QuamBaseClass):
 
-    def __init__(self, path='.entropy'):
-        # self.instruments = LabResources(SqlAlchemyDB(path))
+    def __init__(self, path: str = '.entropy'):
+        self._instruments_store = LabResources(SqlAlchemyDB(path))
+        self.instruments = Munch()
         self._cb_types = (qua_components.Element, qua_components.ElementCollection,
                           qua_components.Waveform, qua_components.Controller, qua_components.Mixer,
                           qua_components.IntegrationWeights, qua_components.Pulse)
@@ -110,6 +115,16 @@ class QuamAdmin(QuamBaseClass):
             self.elements[element.name] = element
             if isinstance(element, self._cb_types):
                 self.config_builder_objects[element.name] = element
+
+    def add_instrument(self, name: str, resource_class: Type, persistent=True, *args, **kwargs):
+        if persistent:
+            self._instruments_store.register_resource(name, resource_class, *args, **kwargs)
+        else:
+            self._instruments_store.(name, resource_class, *args, **kwargs)
+
+        self.instruments[name] = self._instruments_store.get_resource(name)
+
+
 
     def add_parameter(self, name: str, val: Any, persistent: bool = True):
         if persistent:
@@ -143,7 +158,7 @@ class QuamOracle(QuamBaseClass):
     def QUA_element_names(self):
         return list(self.config_builder_objects.keys())
 
-    def operations(self, elm_name:str):
+    def operations(self, elm_name: str):
         config = self.config
         if elm_name in config["elements"].keys():
             return list(config["elements"][elm_name]["operations"].keys())
@@ -193,5 +208,3 @@ class QuamUser(QuamBaseClass):
             self.pulses[elm] = elm
         for elm in config["integration_weights"].keys():
             self.integration_weights[elm] = elm
-       
-    
