@@ -12,6 +12,7 @@ def test_flux_tunable_qubit():
     admin, quam, oracle = quam_init(path)
 
     def test_admin(admin):
+        admin.remove_all_instruments()
         admin.set_instrument(name='flux_driver', resource_class=DummyDC)
 
         def flux_setter(value):
@@ -42,6 +43,13 @@ def test_flux_tunable_qubit():
         # print(commit_id)
         admin.params.checkout(commit_id)  # checking we can also checkout from the ParamStore
         return commit_id  # this is a temporary solution for communicating between the three interfaces
+
+    def test_oracle(oracle,c_id):
+        oracle.load(c_id)
+
+        assert set(oracle.instrument_list) == set([''])  # element
+
+        return c_id
 
     def test_quam(quam, c_id):
         quam.load(c_id)
@@ -74,7 +82,14 @@ def test_flux_tunable_qubit():
                 Q_str.save_all('Q_out')
         #
     # quam.qua_executor.run(prog)
+    c_id = test_admin(admin)
+    c_id = test_oracle(oracle, c_id)
+    test_quam(quam, c_id)
 
+    assert True
+
+
+test_flux_tunable_qubit()
     # admin.cont1.add(ArbitraryWaveform('wf_ramp', np.linspace(-0.5, 0.5, 1000)))
     #
     # xmon.add(Operation(ControlPulse("pi_pulse", [admin.cont1.wf_ramp, admin.cont1.wf_zero], 1000)))

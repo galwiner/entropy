@@ -72,7 +72,6 @@ class InstParameter:
                 raise AttributeError(f'Error in initialising Attribute {self.name} with custom setter.')
             self._setter = setter
 
-
         self._value = val
 
     @property
@@ -87,15 +86,11 @@ class InstParameter:
         if self._setter is not None:
             self._setter(value)
 
-class InstVars(Munch):
+
+class InstVars(ConfigVars):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-    @property
-    def parameter(self):
-        return self._parameter
-    @parameter.setter
-    def parameter(self, value):
-        self._parameter = value
+
 
 class QuamBaseClass(ABC):
 
@@ -150,6 +145,9 @@ class QuamAdmin(QuamBaseClass):
 
         super().__init__(path)
 
+    def __repr__(self):
+        return f"QuamAdmin({self.path})"
+
     def add(self, element):
         if isinstance(element, QuamElement):
             self.elements[element.name] = element
@@ -167,6 +165,10 @@ class QuamAdmin(QuamBaseClass):
 
     def remove_instrument(self, name: str):
         self._instruments_store.remove_resource(name)
+
+    def remove_all_instruments(self):
+        for res in self._instruments_store.all_resources():
+            self._instruments_store.remove_resource(res)
 
     def add_parameter(self, name: str, val: Any, persistent: bool = True):
         if persistent:
@@ -191,6 +193,11 @@ class QuamOracle(QuamBaseClass):
 
     def __init__(self, path='.entropy') -> None:
         super().__init__(path)
+        self._instrument_store = LabResources(SqlAlchemyDB(path))
+        self.instrument_list = tuple(self._instrument_store.all_resources())
+
+    def __repr__(self):
+        return f"QuamOracle({self.path})"
 
     @property
     def element_names(self):
@@ -227,6 +234,10 @@ class QuamUser(QuamBaseClass):
         self.pulses = Munch()
         self.integration_weights = Munch()
         self._instrument_store = LabResources(SqlAlchemyDB(path))
+        self.instrument_list = self._instrument_store.all_resources()
+
+    def __repr__(self):
+        return f"QuamUser({self.path})"
 
     @property
     def config(self):
