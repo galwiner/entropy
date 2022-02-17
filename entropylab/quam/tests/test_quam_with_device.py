@@ -62,7 +62,11 @@ def test_flux_tunable_qubit():
         quam.params.ro_duration = 1000
     #
     # quam.xmon.flux = 12
-    #
+
+        # quam.inst_vars.flux_sweep.setup_sweep(start,stop,duration) #sets up an instrument
+
+
+
         with program() as prog:
             f = declare(int)
             I = declare(fixed)
