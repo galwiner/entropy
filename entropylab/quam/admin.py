@@ -118,6 +118,16 @@ class QuamAdmin(QuamBaseClass):
     def __repr__(self):
         return f"QuamAdmin({self.path})"
 
+    def save(self):
+        super().save()
+        self._paramStore['instruments'] = self._serialize_instruments()
+
+    def _serialize_instruments(self):
+        for k, v in self.instruments.items():
+            self._paramStore['instruments'][k] = {'name': k, 'methods': self._method_extract(v)}
+    def _method_extract(self,obj):
+        return {}
+    
     def add(self, element):
         if isinstance(element, QuamElement):
             self.elements[element.name] = element
