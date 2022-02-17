@@ -42,8 +42,6 @@ class ParamStoreConnector:
 # this class represents an entity that can control  instruments
 class QuamElement(object):
     def __init__(self, **kwargs):
-        #self._configBuilderComponents = []
-        #self.params = Munch()
         self.instruments = Munch()
         super().__init__(**kwargs)
 
@@ -66,6 +64,7 @@ class QuamBaseClass(ABC):
         self.config_vars = ConfigVars()
     
     def commit(self, label: str = None):
+        self.save()
         return self.params.commit(label)
 
     def merge(self, theirs: Union[Dict, ParamStore],
@@ -110,11 +109,6 @@ class QuamAdmin(QuamBaseClass):
             self.elements[element.name] = element
             if isinstance(element, self._cb_types):
                 self.config_builder_objects[element.name] = element
-
-    def add_parameter(self, name: str, val: Any, persistent: bool = True):
-        if persistent:
-            self.params._params[name] = val
-        self.config_vars.set(name=val)
 
 
 #     def add_instrument(self, name, class_name, args, kwargs):

@@ -16,7 +16,6 @@ def test_resonator_spectroscopy_separated():
 
         cont = QuamController(name='cont1')
 
-        #admin.add_parameter('xmon_if', val=1e6, persistent=True)
         admin.add(cont)
 
         xmon = QuamTransmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
@@ -74,29 +73,24 @@ def test_resonator_spectroscopy_separated():
         admin.params['ro_amp'] = 1e-2
         admin.params['ro_duration'] = 200e-9
 
-        #print(admin._paramStore._params)
         config = admin.build_qua_config() #TODO: add a test that the built config is correct
-        #print(config["waveforms"]["pi_wf_opt"])
-        admin.save()
         commit_id = admin.commit("set config vars")
         #print(commit_id)
         admin.params.checkout(commit_id) #checking we can also checkout from the ParamStore
-        return commit_id #this is a temporary solution for communicating between the three interfaces
+        return commit_id
 
 
     def test_oracle(oracle, c_id):
-
-        #these three lines will be automatic when the communication mechanism is done
         # Run a resonator spectroscopy as a user
         oracle.load(c_id)
         assert set(oracle.element_names) == set(['cont1', 'xmon', 'ror']) #element can be non qua elements. maybe we need to rename. maybe this should be seperate from qua
         assert set(oracle.QUA_element_names) == set(['cont1','ror', 'xmon'])
         commit_list = oracle.params.list_commits('set config vars')
-        #oracle.params.checkout(c_id)# make sure checkout from the oracle is possible.
+        oracle.params.checkout(c_id)# make sure checkout from the oracle is possible.
         assert oracle.operations('ror') == ['readout_pulse']
         assert oracle.integration_weights == ['w1', 'w2']
         assert set(oracle.user_params) == set(['pi_wf_samples','ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if', 'ror_lo'])
-        return c_id #this is a temporary solution for communicating between the three interfaces
+        return c_id
     # User
     def test_quam(quam, c_id):
         quam.load(c_id)
@@ -108,7 +102,6 @@ def test_resonator_spectroscopy_separated():
         quam.params.ro_duration = 1000
         
         c_id = quam.commit(label='update config vars') #user is able to commit to param store
-        quam.save()
         f_start = int(10e6)
         f_end = int(50e6)
         df = int(1e6)
