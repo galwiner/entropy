@@ -58,35 +58,6 @@ def without_keys(d, keys):
     return {x: d[x] for x in d if x not in keys}
 
 
-class InstParameter:
-    def __init__(self, name=None, val=None, setter: Callable = None) -> None:
-
-        self.name = name
-
-        self.dirty: bool = True
-        if setter is not None:
-            self._value = val
-            try:
-                setter(val)
-            except:
-                raise AttributeError(f'Error in initialising Attribute {self.name} with custom setter.')
-            self._setter = setter
-
-        self._value = val
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        # @functools.wraps(self._setter)
-        # def setter_wrapper(self,*args,**kwargs):
-        self._value = value
-        if self._setter is not None:
-            self._setter(value)
-
-
 class InstVars(ConfigVars):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

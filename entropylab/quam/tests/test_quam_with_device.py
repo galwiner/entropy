@@ -25,8 +25,9 @@ def test_flux_tunable_qubit():
                 super().__init__(**kwargs)
                 self.flux_channel = flux_channel
 
+
         xmon = QuamFluxTunableXmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
-                                   flux_channel=admin.inst_vars.parameter('flux_driver', setter=flux_setter),
+                                   flux_channel=admin.inst_vars.parameter('flux_driver',setter=flux_setter))
                                    intermediate_frequency=admin.config_vars.parameter("xmon_if"))
 
         xmon.lo_frequency = admin.config_vars.parameter("xmon_lo")
