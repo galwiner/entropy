@@ -1,6 +1,9 @@
 from qm.qua import *
-from entropylab.quam.admin import QuamAdmin, quam_init, QuamElement, QuamTransmon,\
+from entropylab.quam.admin import QuamAdmin
+from entropylab.quam.core import QuamElement, QuamTransmon,\
                                   QuamReadoutResonator, QuamController
+from entropylab.quam.initialization import quam_init
+
 from qualang_tools.config.components import *
 from entropylab.quam.dummy_driver import DummyInst
 import numpy as np
