@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from munch import Munch
 from typing import Any, Optional, Type, Callable, Union, Dict
 
-from entropylab.api.param_store import InProcessParamStore, ParamStore, MergeStrategy
+from entropylab.api.in_process_param_store import InProcessParamStore, ParamStore, MergeStrategy
+
 from qualang_tools.config.parameters import ConfigVars, Parameter
 from qualang_tools.config import components as qua_components
 from qualang_tools.config import ConfigBuilder
@@ -38,7 +39,7 @@ class QuamBaseClass(ABC):
 
     def build_qua_config(self):
         cb = ConfigBuilder()
-        self.config_vars.set(**without_keys(self.params._params,
+        self.config_vars.set(**without_keys(self.params,
                                             ["config_objects", "instruments"]))
         for k in self.config_builder_objects.keys():
             cb.add(self.config_builder_objects[k])
@@ -49,7 +50,7 @@ class QuamBaseClass(ABC):
         (self.config_vars, self.config_builder_objects) = jsonpickle.decode(self.params["config_objects"])
         for k in self.config_builder_objects.keys():
             self.elements[k] = self.config_builder_objects[k]
-        self.config_vars.set(**without_keys(self.params._params, ["config_objects", "instruments"]))
+        self.config_vars.set(**without_keys(self.params, ["config_objects", "instruments"]))
 
     def save(self):
         self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars,
