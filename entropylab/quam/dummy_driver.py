@@ -34,4 +34,4 @@ class DummyDC(DummyInst):
     @v1.setter
     def v1(self, val: float):
         self._v1 = val
-        print(f"instrument name {self.name}, set voltage to {val}")
+        #print(f"instrument name {self.name}, set voltage to {val}")

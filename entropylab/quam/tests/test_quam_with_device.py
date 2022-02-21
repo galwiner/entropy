@@ -68,6 +68,7 @@ def test_flux_tunable_qubit():
         admin.params['ro_duration'] = 200e-9
         #config = admin.build_qua_config()
         admin.config_vars.parameter("flux_driver")(12)
+        assert admin.instruments.flux_driver.v1 == 12
         commit_id = admin.commit("set config vars")
         # print(commit_id)
         
