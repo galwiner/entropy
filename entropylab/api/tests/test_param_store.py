@@ -1,10 +1,15 @@
 from pprint import pprint
+from time import sleep
 
 import pytest
 from tinydb import Query
 
 from entropylab.api.errors import EntropyError
-from entropylab.api.param_store import InProcessParamStore, Metadata, MergeStrategy
+from entropylab.api.in_process_param_store import (
+    InProcessParamStore,
+    Metadata,
+    MergeStrategy,
+)
 
 """ ctor """
 
@@ -78,10 +83,39 @@ def test___getitem___when_key_starts_with_underscore_then_keyerror_is_raised():
         target["_base_doc_id"]
 
 
-def test___setitem___when_key_starts_with_underscore_then_keyerror_is_raised():
+def test___setitem___when_key_starts_with_underscore_then_key_can_be_retrieved():
     target = InProcessParamStore()
-    with pytest.raises(KeyError):
-        target["_base_doc_id"] = "bar"
+    target["_base_doc_id"] = "bar"
+    bar = target["_base_doc_id"]
+    assert bar == "bar"
+
+
+def test___setitem___when_key_starts_with_dunder_then_key_is_not_saved_to_db(
+    tinydb_file_path,
+):
+    with InProcessParamStore(tinydb_file_path) as target:
+        target.__foo = "bar"
+        target.commit()
+    with open(tinydb_file_path) as f:
+        assert "__foo" not in f.read()
+
+
+def test___delitem__():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    del target["foo"]
+    assert "foo" not in target
+
+
+def test___delitem___when_key_is_deleted_then_it_is_removed_from_tags_too():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    target["goo"] = "baz"
+    target.add_tag("tag", "foo")
+    target.add_tag("tag", "goo")
+    # act
+    del target["foo"]
+    assert target.list_keys("tag") == ["goo"]
 
 
 """ commit() """
@@ -117,6 +151,7 @@ def test_commit_when_committing_same_state_twice_a_different_id_is_returned(
     target = InProcessParamStore(tinydb_file_path)
     target["foo"] = "bar"
     first = target.commit()
+    sleep(0.1)
     del target["foo"]
     # noinspection PyUnusedLocal
     second = target.commit()
@@ -130,14 +165,14 @@ def test_commit_when_committing_same_state_twice_a_different_id_is_returned(
 def test_commit_when_label_is_not_given_then_null_label_is_saved(tinydb_file_path):
     target = InProcessParamStore(tinydb_file_path)
     commit_id = target.commit()
-    result = target._db.search(Query().metadata.id == commit_id)
+    result = target._InProcessParamStore__db.search(Query().metadata.id == commit_id)
     assert result[0]["metadata"]["label"] is None
 
 
 def test_commit_when_label_is_given_then_label_is_saved(tinydb_file_path):
     target = InProcessParamStore(tinydb_file_path)
     commit_id = target.commit("foo")
-    result = target._db.search(Query().metadata.id == commit_id)
+    result = target._InProcessParamStore__db.search(Query().metadata.id == commit_id)
     assert result[0]["metadata"]["label"] == "foo"
 
 
@@ -194,6 +229,31 @@ def test_checkout_when_commit_num_exists_value_is_reverted(tinydb_file_path):
     target.checkout(commit_num=1)
     # assert
     assert target["foo"] == "bar"
+
+
+def test_checkout_when_tag_existed_in_commit_then_it_is_added_to_store(
+    tinydb_file_path,
+):
+    # arrange
+    target = InProcessParamStore(tinydb_file_path)
+    target["foo"] = "bar"
+    target.add_tag("tag", "foo")
+    commit_id = target.commit()
+    target.remove_tag("tag", "foo")
+    target.checkout(commit_id)
+    assert target.list_keys("tag") == ["foo"]
+
+
+def test_checkout_when_tag_did_not_exist_in_commit_then_it_is_removed_from_store(
+    tinydb_file_path,
+):
+    # arrange
+    target = InProcessParamStore(tinydb_file_path)
+    target["foo"] = "bar"
+    commit_id = target.commit()
+    target.add_tag("tag", "foo")
+    target.checkout(commit_id)
+    assert target.list_keys("tag") == []
 
 
 @pytest.mark.parametrize(
@@ -291,14 +351,14 @@ def test_list_commits_when_label_exists_then_it_is_returned(
 
 def test__generate_metadata_empty_dict():
     target = InProcessParamStore()
-    actual = target._generate_metadata()
+    actual = target._InProcessParamStore__generate_metadata()
     assert len(actual.id) == 40
 
 
 def test__generate_metadata_nonempty_dict():
     target = InProcessParamStore()
     target["foo"] = "bar"
-    actual = target._generate_metadata()
+    actual = target._InProcessParamStore__generate_metadata()
     assert len(actual.id) == 40
 
 
@@ -371,6 +431,23 @@ def test_merge_strategy_ours_both_sides():
     }
 
 
+def test_merge_strategy_ours_when_both_are_empty_then_store_remains_not_dirty():
+    target = InProcessParamStore()
+    theirs = InProcessParamStore()
+    target.commit()  # so is_dirty becomes False
+    target.merge(theirs, MergeStrategy.OURS)
+    assert not target.is_dirty
+
+
+def test_merge_strategy_ours_when_their_key_is_copied_then_store_is_dirty():
+    target = InProcessParamStore()
+    theirs = InProcessParamStore()
+    theirs["foo"] = "bar"
+    target.commit()  # so is_dirty becomes False
+    target.merge(theirs, MergeStrategy.OURS)
+    assert target.is_dirty
+
+
 """ merge() MergeStrategy.THEIRS """
 
 
@@ -438,6 +515,144 @@ def test_merge_strategy_theirs_both_sides():
             "c": 3,
         }
     }
+
+
+def test_merge_strategy_theirs_when_their_key_is_copied_then_store_is_dirty():
+    target = InProcessParamStore()
+    theirs = InProcessParamStore()
+    theirs["foo"] = "bar"
+    target.commit()  # so is_dirty becomes False
+    target.merge(theirs, MergeStrategy.THEIRS)
+    assert target.is_dirty
+
+
+""" list_values() """
+
+
+def test_list_values_when_key_was_never_in_store_then_empty_list_is_returned():
+    target = InProcessParamStore()
+    assert target.list_values("foo").empty
+
+
+def test_list_values_when_key_is_dirty_in_store_then_one_value_is_returned():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    actual = target.list_values("foo")
+    assert actual.iloc[0]["value"] == "bar"
+    assert actual.iloc[0]["time"] is None
+    assert actual.iloc[0]["commit_id"] is None
+    assert actual.iloc[0]["label"] is None
+
+
+def test_list_values_when_store_is_not_dirty_then_value_is_full():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    target.commit("label")
+    actual = target.list_values("foo")
+    assert actual.iloc[0]["value"] == "bar"
+    assert actual.iloc[0]["time"] is not None
+    assert actual.iloc[0]["commit_id"] is not None
+    assert actual.iloc[0]["label"] == "label"
+
+
+def test_list_values_when_key_is_dirty_and_in_commit_then_two_values_are_returned():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    target.commit()
+    target["foo"] = "baz"
+    actual = target.list_values("foo")
+    assert actual.iloc[0]["value"] == "bar"
+    assert actual.iloc[1]["value"] == "baz"
+
+
+def test_list_values_then_values_are_sorted_by_ns_ascending():
+    # arrange
+    target = InProcessParamStore()
+    target["foo"] = 1
+    target.commit()
+    target["foo"] = 2
+    target.commit("beta")
+    target["foo"] = 3
+    target.commit("gamma")
+    target["foo"] = 4
+    # act
+    actual = target.list_values("foo")
+    # assert
+    assert actual.iloc[0]["value"] == 1
+    assert actual.iloc[1]["value"] == 2
+    assert actual.iloc[2]["value"] == 3
+    assert actual.iloc[3]["value"] == 4
+    assert actual.iloc[0]["label"] is None
+    assert actual.iloc[1]["label"] == "beta"
+    assert actual.iloc[2]["label"] == "gamma"
+    assert actual.iloc[3]["label"] is None
+
+
+def test_list_values_then_when_key_is_deleted_it_is_not_in_list_of_values():
+    # arrange
+    target = InProcessParamStore()
+    target["foo"] = 1
+    target.commit("alpha")
+    del target["foo"]
+    target.commit("beta")
+    target["foo"] = 3
+    target.commit("gamma")
+    target["foo"] = 4
+    # act
+    actual = target.list_values("foo")
+    # assert
+    assert actual.iloc[0]["value"] == 1
+    assert actual.iloc[1]["value"] == 3
+    assert actual.iloc[2]["value"] == 4
+    assert actual.iloc[0]["label"] == "alpha"
+    assert actual.iloc[1]["label"] == "gamma"
+    assert actual.iloc[2]["label"] is None
+
+
+""" Tags """
+
+
+def test_add_tag_when_key_is_not_in_store_then_keyerror_is_raised():
+    target = InProcessParamStore()
+    with pytest.raises(KeyError):
+        target.add_tag("tag", "foo")
+
+
+def test_add_tag_when_key_exists_then_tag_is_added():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    target.add_tag("tag", "foo")
+    assert "foo" in target.list_keys("tag")
+    assert target.is_dirty
+
+
+def test_remove_tag_when_key_doesnt_exist_then_nothing_happens():
+    target = InProcessParamStore()
+    target.commit()  # so is_dirty becomes False
+    target.remove_tag("tag", "foo")
+    assert not target.is_dirty
+
+
+def test_remove_tag_when_tag_doesnt_exist_then_nothing_happens():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    target.commit()  # so is_dirty becomes False
+    target.remove_tag("tag", "foo")
+    assert not target.is_dirty
+
+
+def test_list_keys_when_tag_doesnt_exist_then_empty_list_is_returned():
+    target = InProcessParamStore()
+    assert target.list_keys("tag") == []
+
+
+def test_list_keys_when_tag_exists_then_multiple_tags_are_returned():
+    target = InProcessParamStore()
+    target["foo"] = "bar"
+    target["boo"] = "baz"
+    target.add_tag("tag", "foo")
+    target.add_tag("tag", "boo")
+    assert target.list_keys("tag") == ["foo", "boo"]
 
 
 """ demo test """

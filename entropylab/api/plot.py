@@ -99,8 +99,10 @@ class ImShowPlotGenerator(PlotGenerator):
         super().__init__()
 
     def plot_plotly(self, figure: go.Figure, data, **kwargs) -> None:
-        # TODO: Validate type of data
-        return px.imshow(data)
+        headtmap_fig = px.imshow(data)
+        figure.add_trace(headtmap_fig.data[0])
+
+        return figure
 
     def plot_bokeh(self, figure: Figure, data, **kwargs) -> Renderer:
         raise NotImplementedError()
