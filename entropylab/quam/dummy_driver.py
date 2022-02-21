@@ -1,4 +1,4 @@
-class DummyInst:
+class DummyInst(object):
     def __init__(self, name: str):
         self.name = name
         self.connection = None
@@ -34,3 +34,4 @@ class DummyDC(DummyInst):
     @v1.setter
     def v1(self, val: float):
         self._v1 = val
+        print(f"instrument name {self.name}, set voltage to {val}")

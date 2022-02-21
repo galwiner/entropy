@@ -7,6 +7,7 @@ from attr import attr
 from cached_property import cached_property
 from tomlkit import value
 import jsonpickle
+import inspect
 
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qualang_tools.config import ConfigBuilder
@@ -20,8 +21,6 @@ from entropylab import LabResources, SqlAlchemyDB
 class QuamAdmin(QuamBaseClass):
 
     def __init__(self, path: str = '.entropy'):
-        self._instruments_store = LabResources(SqlAlchemyDB(path))
-        self.instruments = Munch()
         self._cb_types = (Element, ElementCollection, Waveform, Controller, Mixer,
                           IntegrationWeights, Pulse)
 
@@ -30,17 +29,6 @@ class QuamAdmin(QuamBaseClass):
     def __repr__(self):
         return f"QuamAdmin({self.path})"
 
-    def save(self):
-        super().save()
-        self._paramStore['instruments'] = self._serialize_instruments()
-
-    def _serialize_instruments(self):
-        self._paramStore['instruments'] = {}
-        for k, v in self.instruments.items():
-            self._paramStore['instruments'][k] = {'name': k, 'methods': self._method_extract(v)}
-    def _method_extract(self,obj):
-        return {}
-    
     def add(self, element):
         if isinstance(element, QuamElement):
             self.elements[element.name] = element
@@ -53,9 +41,9 @@ class QuamAdmin(QuamBaseClass):
             self._instruments_store.register_resource(name, resource_class, *args, **kwargs)
         else:
             self._instruments_store.register_resource(name, resource_class, *args, **kwargs)
-
+        
         self.instruments[name] = self._instruments_store.get_resource(name)
-
+        
     def remove_instrument(self, name: str):
         self._instruments_store.remove_resource(name)
 

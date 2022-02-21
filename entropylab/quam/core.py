@@ -3,8 +3,10 @@ import jsonpickle
 from abc import ABC, abstractmethod
 from munch import Munch
 from typing import Any, Optional, Type, Callable, Union, Dict
+import inspect
 
 from entropylab.api.in_process_param_store import InProcessParamStore, ParamStore, MergeStrategy
+from entropylab import LabResources, SqlAlchemyDB
 
 from qualang_tools.config.parameters import ConfigVars, Parameter
 from qualang_tools.config import components as qua_components
@@ -24,6 +26,8 @@ class QuamBaseClass(ABC):
         self._paramStore["config_objects"] = Munch()
         self.elements = Munch()
         self.config_vars = ConfigVars()
+        self._instruments_store = LabResources(SqlAlchemyDB(path))
+        self.instruments = Munch()
 
     def commit(self, label: str = None):
         self.save()
@@ -55,7 +59,17 @@ class QuamBaseClass(ABC):
     def save(self):
         self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars,
                                                                 self.config_builder_objects))
+        self._serialize_instruments()
 
+    def _serialize_instruments(self):
+        self._paramStore['instruments'] = {}
+        for k, v in self.instruments.items():
+            self._paramStore['instruments'][k] = {'name': k, 'methods': self._method_extract(v)}
+            
+    def _method_extract(self, obj):
+        methods = inspect.getmembers(obj, predicate=inspect.ismethod)
+        print("methods: ", methods)
+        return methods
 
 # this class represents an entity that can control  instruments
 class QuamElement(object):
@@ -74,3 +88,4 @@ class QuamFluxTunableXmon(qua_components.Transmon, QuamElement):
     def __init__(self, flux_channel, *args, **kwargs):
         self.flux_channel = flux_channel
         super().__init__(*args, **kwargs)
+        

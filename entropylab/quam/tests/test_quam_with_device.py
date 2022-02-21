@@ -4,6 +4,7 @@ from entropylab.quam.initialization import quam_init
 from entropylab.quam.core import QuamElement, QuamTransmon, \
     QuamReadoutResonator, QuamController, QuamFluxTunableXmon
 from qualang_tools.config.components import *
+from qualang_tools.config import components as qua_components
 from entropylab.quam.dummy_driver import DummyInst, DummyDC
 import numpy as np
 from qm import SimulationConfig
@@ -15,11 +16,11 @@ def test_flux_tunable_qubit():
 
     def test_admin(admin):
         admin.remove_all_instruments()
-        admin.set_instrument(name='flux_driver', resource_class=DummyDC)
+        admin.set_instrument(name='flux_driver', resource_class=DummyDC,args=["flux_driver"])
 
         def flux_setter(value):
             admin.instruments.flux_driver.v1 = value
-
+        ##xmon.flux_channel(30)
         cont = QuamController(name='cont1')
 
         xmon = QuamFluxTunableXmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
@@ -66,14 +67,17 @@ def test_flux_tunable_qubit():
         admin.params['ro_amp'] = 1e-2
         admin.params['ro_duration'] = 200e-9
         #config = admin.build_qua_config()
+        admin.config_vars.parameter("flux_driver")(12)
         commit_id = admin.commit("set config vars")
         # print(commit_id)
+        
         admin.params.checkout(commit_id)  # checking we can also checkout from the ParamStore
         return commit_id  # this is a temporary solution for communicating between the three interfaces
 
     def test_oracle(oracle,c_id):
         oracle.load(c_id)
         assert set(oracle.instrument_list) == set(['flux_driver'])  # element
+        ##more tests?
         return c_id
 
     def test_quam(quam, c_id):
@@ -84,11 +88,14 @@ def test_flux_tunable_qubit():
         quam.params.ror_if = 1e6
         quam.params.ror_amp = 0.5
         quam.params.ro_duration = 1000
-    #
-    # quam.xmon.flux = 12
 
+        print("quam flux channel setter")
+        print(quam.config_builder_objects["xmon"].flux_channel(12))
+        print(quam.config_vars.parameter("flux_driver")())
+    #
+        #quam.elements.xmon.flux_channel(12)
         # quam.inst_vars.flux_sweep.setup_sweep(start,stop,duration) #sets up an instrument
-        #quam.xmon.flux_line.sweep()
+        #quam.xmon.flux_channel
 
 
         f_start = 10.0
