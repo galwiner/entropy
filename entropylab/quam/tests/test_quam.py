@@ -1,7 +1,6 @@
 from qm.qua import *
-from entropylab.quam.admin import QuamAdmin
-from entropylab.quam.core import QuamElement, QuamTransmon,\
-                                  QuamReadoutResonator, QuamController
+from entropylab.quam.admin import QuamAdmin, QMInstrument
+from entropylab.quam.core import QuamElement
 from entropylab.quam.initialization import quam_init
 
 from qualang_tools.config.components import *
@@ -9,6 +8,16 @@ from entropylab.quam.dummy_driver import DummyInst
 import numpy as np
 from qm import SimulationConfig
 
+from qualang_tools.config import components as qua_components
+import os, sys
+
+sys.path.append(os.path.abspath(os.getcwd()))
+## this line is needed to make the Quam objects defined below to be accessible in the global scope
+## for pickling and unpickling QuamElements to param store
+
+cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
+for obj in cb_objs:
+    globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
 
 def test_resonator_spectroscopy_separated():
 
@@ -16,10 +25,11 @@ def test_resonator_spectroscopy_separated():
     admin, quam, oracle = quam_init(path)
 
     def test_admin(admin):
+        admin.set_instrument(name='qm', resource_class=QMInstrument)
 
         cont = QuamController(name='cont1')
 
-        admin.add(cont)
+        admin.qm.add(cont)
 
         xmon = QuamTransmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
                             intermediate_frequency=admin.config_vars.parameter("xmon_if"))
@@ -43,7 +53,7 @@ def test_resonator_spectroscopy_separated():
                                          zero_wf],
                                         1000)))
 
-        admin.add(xmon)
+        admin.qm.add(xmon)
 
         ror = QuamReadoutResonator(name='ror',
                                    inputs=[cont.analog_output(4), cont.analog_output(5)],
@@ -64,7 +74,7 @@ def test_resonator_spectroscopy_separated():
                                                         duration = admin.config_vars.parameter("ro_duration"))))
         ror.add(Operation(ro_pulse))
         ror.time_of_flight = 24
-        admin.add(ror)
+        admin.qm.add(ror)
 
         #admin sets some default values just to test himself and see a config can be built.
 
@@ -76,7 +86,7 @@ def test_resonator_spectroscopy_separated():
         admin.params['ro_amp'] = 1e-2
         admin.params['ro_duration'] = 200e-9
 
-        config = admin.build_qua_config() #TODO: add a test that the built config is correct
+        admin.build_qua_configurations() #TODO: add a test that the built config is correct
         commit_id = admin.commit("set config vars")
         #print(commit_id)
         admin.params.checkout(commit_id) #checking we can also checkout from the ParamStore

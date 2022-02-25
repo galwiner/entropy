@@ -1,14 +1,26 @@
 from qm.qua import *
 from entropylab.quam.admin import QuamAdmin
 from entropylab.quam.initialization import quam_init
-from entropylab.quam.core import QuamElement, QuamTransmon, \
-    QuamReadoutResonator, QuamController, QuamFluxTunableXmon
+from entropylab.quam.core import QuamElement
 from qualang_tools.config.components import *
-from qualang_tools.config import components as qua_components
 from entropylab.quam.dummy_driver import DummyInst, DummyDC
 import numpy as np
 from qm import SimulationConfig
 
+
+from qualang_tools.config import components as qua_components
+import os, sys
+
+sys.path.append(os.path.abspath(os.getcwd()))
+
+cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
+for obj in cb_objs:
+    globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
+
+class QuamFluxTunableXmon(qua_components.Transmon, QuamElement):
+    def __init__(self, flux_channel, *args, **kwargs):
+        self.flux_channel = flux_channel
+        super().__init__(*args, **kwargs)
 
 def test_flux_tunable_qubit():
     path = 'entropylab/quam/tests/tests_cache/'
@@ -16,7 +28,7 @@ def test_flux_tunable_qubit():
 
     def test_admin(admin):
         admin.remove_all_instruments()
-        admin.set_instrument(name='flux_driver', resource_class=DummyDC,args=["flux_driver"])
+        admin.set_instrument(name='flux_driver', resource_class=DummyDC, args=["flux_driver"])
 
         def flux_setter(value):
             admin.instruments.flux_driver.v1 = value
