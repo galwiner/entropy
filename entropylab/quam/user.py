@@ -1,53 +1,62 @@
 from munch import Munch
 import copy
 
-from entropylab.quam.core import QuamBaseClass
+from entropylab.quam.core import QuamBaseClass, QMInstrument
 from entropylab import LabResources, SqlAlchemyDB
 from qm.QuantumMachinesManager import QuantumMachinesManager
 
 
-class QuamUser(QuamBaseClass):
+class QuamUser(QuamBaseClass, Munch):
     
     def __init__(self, path='.entropy', host="127.0.0.1"):
-        super().__init__(path)
+        super().__init__(path).__init__()
         self.host = host
-        self.elements = Munch()
-        self.pulses = Munch()
-        self.integration_weights = Munch()
         self._instrument_store = LabResources(SqlAlchemyDB(path))
         self.instrument_list = self._instrument_store.all_resources()
         self.qm_manager = QuantumMachinesManager(host)
-        self.quantum_machine = None
-        self._config = dict()
+        self.quantum_machines = dict()
 
     def __repr__(self):
         return f"QuamUser({self.path})"
 
-    @property
-    def config(self):
-        return self.build_qua_config()
 
-    def execute_qua(self, prog, use_simulator=False, simulation_config=None):
-
-        self.qm_manager.close_all_quantum_machines()
-        
-        if self._config != self.config or self.quantum_machine is None:
-            self.quantum_machine = self.qm_manager.open(self.config)
-                
+    def execute_qua(self, qm, prog, use_simulator=False, simulation_config=None):
+        #self.qm_manager.close_all_quantum_machines()
+        self.set_config_vars()
+        config = copy.deepcopy(self.instruments[qm].config)
+        self.instruments[qm].build_qua_config()
+        if config != self.instruments[qm].config:
+            config = self.instruments[qm].config
+            self.quantum_machines[qm] = self.qm_manager.open_qm(config)      
         if use_simulator:
-            job = self.quantum_machine.simulate(self.config, prog, simulation_config)
+            job = self.quantum_machines[qm].simulate(prog, simulation_config)
         else:
-            job = self.quantum_machine.execute(self.config, prog, simulation_config)
+            job = self.quantum_machines[qm].execute(prog, simulation_config)
         job.result_handles.wait_for_all_values()
         return job
 
     def load(self, c_id):
         super().load(c_id)
-        config = self.config
-        self._config = copy.deepcopy(config)
-        for elm in config["elements"].keys():
-            self.elements[elm] = elm
-        for elm in config["pulses"].keys():
-            self.pulses[elm] = elm
-        for elm in config["integration_weights"].keys():
-            self.integration_weights[elm] = elm
+        self.set_config_vars()
+        self.set_config_data()
+        self.set_quantum_machines()
+
+    def set_quantum_machines(self):
+        for (k,v) in self.instruments.items(): 
+            if isinstance(v, QMInstrument):
+                self.quantum_machines[k] = self.qm_manager.open_qm(v.config)
+
+    def set_config_data(self):
+        for (k,v) in self.instruments.items():
+            if isinstance(v, QMInstrument):
+                v.build_qua_config()
+                self[k] = Munch()
+                self[k]["elements"] = Munch()
+                for e in v.config["elements"].keys():
+                    self[k].elements[e] = e     
+                self[k]["pulses"] = Munch()
+                for e in v.config["pulses"].keys():
+                    self[k].pulses[e] = e
+                self[k]["integration_weights"] = Munch()
+                for e in v.config["integration_weights"].keys():
+                    self[k].integration_weights[e] = e

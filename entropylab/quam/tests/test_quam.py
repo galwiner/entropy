@@ -27,7 +27,7 @@ def test_resonator_spectroscopy_separated():
     def test_admin(admin):
         admin.set_instrument(name='qm', resource_class=QMInstrument)
 
-        cont = QuamController(name='cont1')
+        cont = QuamController(name='con1')
 
         admin.qm.add(cont)
 
@@ -96,13 +96,13 @@ def test_resonator_spectroscopy_separated():
     def test_oracle(oracle, c_id):
         # Run a resonator spectroscopy as a user
         oracle.load(c_id)
-        assert set(oracle.element_names) == set(['cont1', 'xmon', 'ror']) #element can be non qua elements. maybe we need to rename. maybe this should be seperate from qua
-        assert set(oracle.QUA_element_names) == set(['cont1','ror', 'xmon'])
+        assert set(oracle.qm.elements) == set(['xmon', 'ror']) #element can be non qua elements. maybe we need to rename. maybe this should be seperate from qua
         commit_list = oracle.params.list_commits('set config vars')
         oracle.params.checkout(c_id)# make sure checkout from the oracle is possible.
-        assert oracle.operations('ror') == ['readout_pulse']
-        assert oracle.integration_weights == ['w1', 'w2']
+        assert oracle.qm.operations['ror'] == ['readout_pulse']
+        assert oracle.qm.integration_weights == ['w1', 'w2']
         assert set(oracle.user_params) == set(['pi_wf_samples','ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if', 'ror_lo'])
+        assert oracle.quantum_machine_names == ["qm"]
         return c_id
     # User
     def test_quam(quam, c_id):
@@ -127,17 +127,18 @@ def test_resonator_spectroscopy_separated():
             I_str = declare_stream()
             Q_str = declare_stream()
             with for_(f, f_start, f < f_end, f + df):
-                update_frequency(quam.elements.ror, f)
-                measure(quam.pulses.readout_pulse, quam.elements.ror, None, 
-                        demod.full(quam.integration_weights.w1, I, "out1"),
-                        demod.full(quam.integration_weights.w2, Q, "out2"))
+                update_frequency(quam.qm.elements.ror, f)
+                measure(quam.qm.pulses.readout_pulse, quam.qm.elements.ror, None, 
+                        demod.full(quam.qm.integration_weights.w1, I, "out1"),
+                        demod.full(quam.qm.integration_weights.w2, Q, "out2"))
                 save(I, I_str)
                 save(Q, Q_str)
             with stream_processing():
                 I_str.save_all('I_out')
                 Q_str.save_all('Q_out')
-      
-        res = quam.execute_qua(prog, 
+
+        res = quam.execute_qua("qm",
+                               prog, 
                                simulation_config=SimulationConfig(duration=10000),
                                use_simulator=True)
         assert hasattr(res.result_handles, 'I_out')

@@ -10,32 +10,38 @@ from entropylab import LabResources, SqlAlchemyDB
 
 from qualang_tools.config.parameters import ConfigVars, Parameter
 from qualang_tools.config import ConfigBuilder
+from qualang_tools.config.components import *
+from qualang_tools.config.primitive_components import *
+from qualang_tools.config.parameters import *
+
+
+class QMInstrument(object):
+    
+    def __init__(self):
+        self._cb_types = (Element, ElementCollection, Waveform, Controller,
+                          Mixer, IntegrationWeights, Pulse)
+        self.config_builder_objects = []
+        self.config = dict() 
+        
+    def add(self, obj):
+        if isinstance(obj, self._cb_types):
+            self.config_builder_objects.append(obj)
+        else:
+            raise TypeError("Adding object of type %s is not supported".format(type(obj)))
+
+    def build_qua_config(self):
+        cb = ConfigBuilder()
+        for k in self.config_builder_objects:
+            cb.add(k)
+        self.config = cb.build()
+       
+
 
 class ParamStoreConnector:
     @staticmethod
     def connect(path) -> InProcessParamStore:
         return InProcessParamStore(path)
 
-class QMInstrument(object):
-    
-    def __init__(self):
-        
-        self._cb_types = (Element, ElementCollection, Waveform, Controller,
-                          Mixer, IntegrationWeights, Pulse)
-        self.config_builder_objects = Munch()
-        self.config = dict()
-
-    def add(self, obj):
-        if isinstance(obj, self._cb_types):
-            self.config_builder_objects[obj.name] = obj
-        else:
-            raise TypeError("Adding object of type %s is not supported".format(type(obj)))
-
-    def build_qua_config(self):
-        cb = ConfigBuilder()
-        for k in self.config_builder_objects.keys():
-            cb.add(self.config_builder_objects[k])
-        self.config = cb.build()
         
 class QuamBaseClass(ABC):
     
@@ -45,10 +51,8 @@ class QuamBaseClass(ABC):
         self.config_vars = ConfigVars()
         self._instruments_store = LabResources(SqlAlchemyDB(path))
         self.instruments = Munch()
-        self._paramStore["qm_instruments"] = Munch()
 
-    def commit(self, label: str = None, objs=[]):
-        self.save(objs)
+    def commit(self, label: str = None):
         return self.params.commit(label)
 
     def merge(self, theirs: Union[Dict, ParamStore],
@@ -61,14 +65,14 @@ class QuamBaseClass(ABC):
 
     def load(self, c_id):
         self.params.checkout(c_id)
-        (self.config_vars, objs) = jsonpickle.decode(self.params["config_objects"])
-        for k in self.config_builder_objects.keys():
-            self.elements[k] = self.config_builder_objects[k]
-        self.config_vars.set(**without_keys(self.params, ["config_objects", "instruments"]))
+        (self.config_vars, objs) = jsonpickle.decode(self._paramStore["config_objects"])
+        for (k, v) in objs.items():
+            self.instruments[k] = v
+        self.set_config_vars()
 
-    def save(self, objs=[]):
-        self._paramStore["config_objects"] = jsonpickle.encode(self.config_vars, objs)
-        self._serialize_instruments()
+    def save(self, objs=None):
+        self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars, objs))
+        #self._serialize_instruments()
 
     def _serialize_instruments(self):
         self._paramStore['instruments'] = {}
@@ -79,7 +83,7 @@ class QuamBaseClass(ABC):
         methods = inspect.getmembers(obj, predicate=inspect.ismethod)
         print("methods: ", methods)
         return {}
-
+    
     def set_config_vars(self):
         self.config_vars.set(**without_keys(self.params, ["config_objects", "instruments"]))
 # this class represents an entity that can control  instruments

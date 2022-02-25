@@ -35,7 +35,7 @@ class QuamAdmin(QuamBaseClass, Munch):
         
         self.instruments[name] = self._instruments_store.get_resource(name)
         if resource_class == QMInstrument:
-            self[name] = resource_class(*args, **kwargs)
+            self[name] = self.instruments[name]
         
     def remove_instrument(self, name: str):
         self._instruments_store.remove_resource(name)
@@ -51,9 +51,9 @@ class QuamAdmin(QuamBaseClass, Munch):
                 v.build_qua_config()
 
     def commit(self, label:str):
-        objs = []
+        objs = dict()
         for (k,v) in self.items():
             if isinstance(v, QMInstrument):
-                objs.append(v)
+                objs[k] = v
         super().save(objs)
         return super().commit(label)

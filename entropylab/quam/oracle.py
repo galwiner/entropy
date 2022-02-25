@@ -1,41 +1,34 @@
 from cached_property import cached_property
+from munch import Munch
 
-from entropylab.quam.core import QuamBaseClass
+from entropylab.quam.core import QuamBaseClass, QMInstrument
 from entropylab import LabResources, SqlAlchemyDB
 
 from qm.QuantumMachinesManager import QuantumMachinesManager
 
-class QuamOracle(QuamBaseClass):
+class QuamOracle(QuamBaseClass, Munch):
     
     def __init__(self, path='.entropy') -> None:
-        super().__init__(path)
+        super().__init__(path).__init__()
         self._instrument_store = LabResources(SqlAlchemyDB(path))
         self.instrument_list = tuple(self._instrument_store.all_resources())
+        self.user_params = []
+        self.quantum_machine_names = []
 
     def __repr__(self):
         return f"QuamOracle({self.path})"
 
-    @property
-    def element_names(self):
-        return list(self.elements.keys())
-
-    @property
-    def QUA_element_names(self):
-        return list(self.config_builder_objects.keys())
-
-    def operations(self, elm_name: str):
-        config = self.config
-        if elm_name in config["elements"].keys():
-            return list(config["elements"][elm_name]["operations"].keys())
-
-    @property
-    def user_params(self):
-        return list(self.config_vars.params.keys())
-
-    @property
-    def integration_weights(self):
-        return list(self.config["integration_weights"].keys())
-
-    @cached_property
-    def config(self):
-        return self.build_qua_config()
+    def load(self, c_id):
+        super().load(c_id)
+        self.set_config_vars()
+        self.user_params = list(self.config_vars.params.keys())
+        for (k,v) in self.instruments.items():
+            self.quantum_machine_names.append(k)
+            v.build_qua_config()
+            self[k] = Munch()
+            self[k]["elements"] = list(v.config["elements"].keys())
+            self[k]["pulses"] = list(v.config["pulses"].keys())
+            self[k]["integration_weights"] = list(v.config["integration_weights"].keys())
+            self[k]["operations"] = Munch()
+            for e in self[k].elements:
+                self[k].operations[e] = list(v.config["elements"][e]["operations"].keys())
