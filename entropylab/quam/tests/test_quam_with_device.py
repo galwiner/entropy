@@ -30,8 +30,9 @@ def test_flux_tunable_qubit():
         admin.remove_all_instruments()
         admin.set_instrument(name='flux_driver', resource_class=DummyDC, args=["flux_driver"])
 
-        def flux_setter(value):
+        def flux_setter(admin:QuamAdmin,value):
             admin.instruments.flux_driver.v1 = value
+
         ##xmon.flux_channel(30)
         cont = QuamController(name='cont1')
 

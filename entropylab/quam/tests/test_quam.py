@@ -7,6 +7,7 @@ from qualang_tools.config.components import *
 from entropylab.quam.dummy_driver import DummyInst
 import numpy as np
 from qm import SimulationConfig
+import os
 
 from qualang_tools.config import components as qua_components
 import os, sys
@@ -20,8 +21,8 @@ for obj in cb_objs:
     globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
 
 def test_resonator_spectroscopy_separated():
-
-    path = 'entropylab/quam/tests/tests_cache'
+    path=os.path.join(os.getcwd(), 'tests_cache')
+    # path = 'entropylab/quam/tests/tests_cache'
     admin, quam, oracle = quam_init(path)
 
     def test_admin(admin):
@@ -36,7 +37,7 @@ def test_resonator_spectroscopy_separated():
 
         xmon.lo_frequency = admin.config_vars.parameter("xmon_lo")
 
-        xmon.mixer = Mixer(name='xmon_mixer', 
+        xmon.mixer = QuamMixer(name='xmon_mixer',
                            intermediate_frequency=admin.config_vars.parameter("xmon_if"),
                            lo_frequency=admin.config_vars.parameter("xmon_lo"),
                            correction=Matrix2x2([[1, 0], [0, 1]]))
