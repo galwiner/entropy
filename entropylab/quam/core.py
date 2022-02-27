@@ -16,13 +16,13 @@ from qualang_tools.config.parameters import *
 
 
 class QMInstrument(object):
-    
+
     def __init__(self):
         self._cb_types = (Element, ElementCollection, Waveform, Controller,
                           Mixer, IntegrationWeights, Pulse)
         self.config_builder_objects = []
-        self.config = dict() 
-        
+        self.config = dict()
+
     def add(self, obj):
         if isinstance(obj, self._cb_types):
             self.config_builder_objects.append(obj)
@@ -34,7 +34,6 @@ class QMInstrument(object):
         for k in self.config_builder_objects:
             cb.add(k)
         self.config = cb.build()
-       
 
 
 class ParamStoreConnector:
@@ -42,9 +41,9 @@ class ParamStoreConnector:
     def connect(path) -> InProcessParamStore:
         return InProcessParamStore(path)
 
-        
+
 class QuamBaseClass(ABC):
-    
+
     def __init__(self, path):
         self.path = path
         self._paramStore = ParamStoreConnector.connect(os.path.join(path, "params.db"))
@@ -72,20 +71,22 @@ class QuamBaseClass(ABC):
 
     def save(self, objs=None):
         self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars, objs))
-        #self._serialize_instruments()
+        # self._serialize_instruments()
 
     def _serialize_instruments(self):
         self._paramStore['instruments'] = {}
         for k, v in self.instruments.items():
             self._paramStore['instruments'][k] = {'name': k, 'methods': self._method_extract(v)}
-            
+
     def _method_extract(self, obj):
         methods = inspect.getmembers(obj, predicate=inspect.ismethod)
         print("methods: ", methods)
         return {}
-    
+
     def set_config_vars(self):
         self.config_vars.set(**without_keys(self.params, ["config_objects", "instruments"]))
+
+
 # this class represents an entity that can control  instruments
 
 class QuamElement(object):
@@ -93,5 +94,28 @@ class QuamElement(object):
         self.instruments = Munch()
         super().__init__(**kwargs)
 
+
+class QuamQubitArray(object,list):
+    def __init__(self, **kwargs):
+
+        self._connectivity = {}
+        super().__init__(**kwargs)
+
+    def add_elements(self, element: QuamElement, connections: set = None):
+        self.append(element)
+        if connections is not None:
+            self._connectivity[len(self._elements)] = connections
+
+    def get_connectivity(self, qb_index=None):
+        if qb_index is None:
+            return self._connectivity
+        else:
+            return self._connectivity[qb_index]
+
+    def show_connectivity(self):
+        for k, v in self._connectivity.items():
+            print(f"Qubit {k} connects to: {v}")
+
+
 def without_keys(d, keys):
-    return {x: d[x] for x in d if x not in keys}        
+    return {x: d[x] for x in d if x not in keys}

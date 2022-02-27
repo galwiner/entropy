@@ -111,7 +111,8 @@ def test_flux_tunable_qubit():
         # quam.inst_vars.flux_sweep.setup_sweep(start,stop,duration) #sets up an instrument
         #quam.xmon.flux_channel
 
-
+        quam.xmon.flux_channel.flux = 100
+        quam.commit("flux sweep")
         f_start = 10.0
         f_end = 20.0
         df = 5.0
