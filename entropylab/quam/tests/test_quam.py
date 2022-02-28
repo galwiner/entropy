@@ -27,7 +27,6 @@ def test_resonator_spectroscopy_separated():
 
     def test_admin(admin):
         admin.set_instrument(name='qm', resource_class=QMInstrument)
-
         cont = QuamController(name='con1')
 
         admin.qm.add(cont)

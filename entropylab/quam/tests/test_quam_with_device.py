@@ -1,7 +1,7 @@
 from qm.qua import *
 from entropylab.quam.admin import QuamAdmin
 from entropylab.quam.initialization import quam_init
-from entropylab.quam.core import QuamElement
+from entropylab.quam.core import QuamElement, QMInstrument
 from qualang_tools.config.components import *
 from entropylab.quam.dummy_driver import DummyInst, DummyDC
 import numpy as np
@@ -34,8 +34,8 @@ def test_flux_tunable_qubit():
             admin.instruments.flux_driver.v1 = value
 
         ##xmon.flux_channel(30)
-        cont = QuamController(name='cont1')
-
+        cont = QuamController(name='con1')
+        admin.qm.add(cont)
         xmon = QuamFluxTunableXmon(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
                                    flux_channel=admin.config_vars.parameter('flux_driver', setter=flux_setter),
                                    intermediate_frequency=admin.config_vars.parameter("xmon_if"))
@@ -47,7 +47,7 @@ def test_flux_tunable_qubit():
                            lo_frequency=admin.config_vars.parameter("xmon_lo"),
                            correction=Matrix2x2([[1, 0], [0, 1]]))
 
-        admin.add(xmon)
+        admin.qm.add(xmon)
 
         zero_wf = ConstantWaveform('wf_zero', 0)
         ror = QuamReadoutResonator(name='ror',
@@ -70,7 +70,7 @@ def test_flux_tunable_qubit():
         ror.add(Operation(ro_pulse))
         ror.time_of_flight = 24
         
-        admin.add(ror)
+        admin.qm.add(ror)
 
         admin.params['xmon_if'] = 10e6
         admin.params['xmon_lo'] = 10e6
@@ -90,7 +90,7 @@ def test_flux_tunable_qubit():
 
     def test_oracle(oracle,c_id):
         oracle.load(c_id)
-        assert set(oracle.instrument_list) == set(['flux_driver'])  # element
+        assert set(oracle.instrument_list) == set(['flux_driver', 'qm'])  # element
         ##more tests?
         return c_id
 
@@ -104,7 +104,7 @@ def test_flux_tunable_qubit():
         quam.params.ro_duration = 1000
 
         print("quam flux channel setter")
-        print(quam.config_builder_objects["xmon"].flux_channel(12))
+        print(quam.instruments["qm"].config_builder_objects["xmon"].flux_channel(12))
         print(quam.config_vars.parameter("flux_driver")())
     #
         #quam.elements.xmon.flux_channel(12)

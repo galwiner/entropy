@@ -25,14 +25,14 @@ class QMInstrument(object):
 
     def add(self, obj):
         if isinstance(obj, self._cb_types):
-            self.config_builder_objects.append(obj)
+            self.config_builder_objects[obj.name] = obj
         else:
             raise TypeError("Adding object of type %s is not supported".format(type(obj)))
 
     def build_qua_config(self):
         cb = ConfigBuilder()
-        for k in self.config_builder_objects:
-            cb.add(k)
+        for (_, v) in self.config_builder_objects.items():
+            cb.add(v)
         self.config = cb.build()
 
 
