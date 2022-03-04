@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from munch import Munch
 from typing import Any, Optional, Type, Callable, Union, Dict
 import inspect
+import dill as pickle
+import copy
 
 from entropylab.api.in_process_param_store import InProcessParamStore, ParamStore, MergeStrategy
 from entropylab import LabResources, SqlAlchemyDB
@@ -14,14 +16,19 @@ from qualang_tools.config.components import *
 from qualang_tools.config.primitive_components import *
 from qualang_tools.config.parameters import *
 
+from qm.QuantumMachinesManager import QuantumMachinesManager
 
-class QMInstrument(object):
 
-    def __init__(self):
+class QMInstrument(Munch):
+
+    def __init__(self, host="127.0.0.1"):
         self._cb_types = (Element, ElementCollection, Waveform, Controller,
                           Mixer, IntegrationWeights, Pulse)
-        self.config_builder_objects = []
+        self.config_builder_objects = Munch()
         self.config = dict()
+        self.qm_manager = None
+        self.host = host
+        super().__init__()
 
     def add(self, obj):
         if isinstance(obj, self._cb_types):
@@ -29,18 +36,37 @@ class QMInstrument(object):
         else:
             raise TypeError("Adding object of type %s is not supported".format(type(obj)))
 
-    def build_qua_config(self):
+    def build(self):
         cb = ConfigBuilder()
         for (_, v) in self.config_builder_objects.items():
             cb.add(v)
         self.config = cb.build()
+
+    def upload_config(self):
+        config = copy.deepcopy(self.config)
+        self.build()
+        if config != self.config:
+            config = self.config
+            self.qm_manager = QuantumMachinesManager(self.host).open_qm(config)
+
+    def simulate(self, prog, simulation_config=None):
+        self.upload_config()
+        job = self.qm_manager.simulate(prog, simulation_config)
+        job.result_handles.wait_for_all_values()
+        return job
+
+    def execute(self, prog, simulation_config=None):
+        #self.qm_manager.close_all_quantum_machines()
+        self.upload_config()
+        job = self.qm_manager.execute(prog, simulation_config)
+        job.result_handles.wait_for_all_values()
+        return job
 
 
 class ParamStoreConnector:
     @staticmethod
     def connect(path) -> InProcessParamStore:
         return InProcessParamStore(path)
-
 
 class QuamBaseClass(ABC):
 
@@ -64,13 +90,15 @@ class QuamBaseClass(ABC):
 
     def load(self, c_id):
         self.params.checkout(c_id)
-        (self.config_vars, objs) = jsonpickle.decode(self._paramStore["config_objects"])
+        #(self.config_vars, objs) = jsonpickle.decode(self._paramStore["config_objects"])
+        (self.config_vars, objs) = pickle.loads(eval(self._paramStore["config_objects"]))
         for (k, v) in objs.items():
             self.instruments[k] = v
         self.set_config_vars()
 
     def save(self, objs=None):
-        self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars, objs))
+        #self._paramStore["config_objects"] = jsonpickle.encode((self.config_vars, objs))
+        self._paramStore["config_objects"] = repr(pickle.dumps((self.config_vars, objs)))
         # self._serialize_instruments()
 
     def _serialize_instruments(self):
@@ -94,7 +122,7 @@ class QuamElement(object):
         self.instruments = Munch()
         super().__init__(**kwargs)
 
-
+"""
 class QuamQubitArray(object,list):
     def __init__(self, **kwargs):
 
@@ -115,7 +143,7 @@ class QuamQubitArray(object,list):
     def show_connectivity(self):
         for k, v in self._connectivity.items():
             print(f"Qubit {k} connects to: {v}")
-
+"""
 
 def without_keys(d, keys):
     return {x: d[x] for x in d if x not in keys}

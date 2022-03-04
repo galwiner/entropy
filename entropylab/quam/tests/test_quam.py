@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.getcwd()))
 ## this line is needed to make the Quam objects defined below to be accessible in the global scope
 ## for pickling and unpickling QuamElements to param store
 
-cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
+cb_objs = ["Controller", "Transmon", "ReadoutResonator", "Mixer"]
 for obj in cb_objs:
     globals()["Quam" + obj] = type("Quam" + obj, (QuamElement, getattr(qua_components, obj)), {})
 
@@ -47,7 +47,7 @@ def test_resonator_spectroscopy_separated():
                                         [ArbitraryWaveform('wf_ramp', list(np.linspace(-0.5, 0.5, 1000))),
                                          zero_wf],
                                         1000)))
-        
+        #t1 = admin.config_vars.parameter("t1")
         xmon.add(Operation(ControlPulse("opt_pi_pulse",
                                         [ArbitraryWaveform('pi_wf_opt', admin.config_vars.parameter("pi_wf_samples")),
                                          zero_wf],
@@ -102,7 +102,7 @@ def test_resonator_spectroscopy_separated():
         assert oracle.qm.operations['ror'] == ['readout_pulse']
         assert oracle.qm.integration_weights == ['w1', 'w2']
         assert set(oracle.user_params) == set(['pi_wf_samples','ro_amp', 'ro_duration', 'xmon_if', 'xmon_lo', 'ror_if', 'ror_lo'])
-        assert oracle.quantum_machine_names == ["qm"]
+        assert oracle.quantum_machines == ["qm"]
         return c_id
     # User
     def test_quam(quam, c_id):
@@ -137,10 +137,8 @@ def test_resonator_spectroscopy_separated():
                 I_str.save_all('I_out')
                 Q_str.save_all('Q_out')
 
-        res = quam.execute_qua("qm",
-                               prog, 
-                               simulation_config=SimulationConfig(duration=10000),
-                               use_simulator=True)
+        res = quam.qm.simulate(prog,
+                               simulation_config=SimulationConfig(duration=10000))
         assert hasattr(res.result_handles, 'I_out')
         assert hasattr(res.result_handles, 'Q_out')
 

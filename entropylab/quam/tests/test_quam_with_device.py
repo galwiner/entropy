@@ -23,14 +23,15 @@ class QuamFluxTunableXmon(qua_components.Transmon, QuamElement):
         super().__init__(*args, **kwargs)
 
 def test_flux_tunable_qubit():
-    path = 'entropylab/quam/tests/tests_cache/'
+    path=os.path.join(os.getcwd(), 'tests_cache')
+    #path = 'entropylab/quam/tests/tests_cache/'
     admin, quam, oracle = quam_init(path)
 
     def test_admin(admin):
         admin.remove_all_instruments()
         admin.set_instrument(name='flux_driver', resource_class=DummyDC, args=["flux_driver"])
-
-        def flux_setter(admin:QuamAdmin,value):
+        admin.set_instrument(name='qm', resource_class=QMInstrument)
+        def flux_setter(value):
             admin.instruments.flux_driver.v1 = value
 
         ##xmon.flux_channel(30)
@@ -83,7 +84,7 @@ def test_flux_tunable_qubit():
         admin.config_vars.parameter("flux_driver")(12)
         assert admin.instruments.flux_driver.v1 == 12
         commit_id = admin.commit("set config vars")
-        # print(commit_id)
+        print(commit_id)
         
         admin.params.checkout(commit_id)  # checking we can also checkout from the ParamStore
         return commit_id  # this is a temporary solution for communicating between the three interfaces

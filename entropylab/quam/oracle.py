@@ -13,7 +13,7 @@ class QuamOracle(QuamBaseClass, Munch):
         self._instrument_store = LabResources(SqlAlchemyDB(path))
         self.instrument_list = tuple(self._instrument_store.all_resources())
         self.user_params = []
-        self.quantum_machine_names = []
+        self.quantum_machines = []
 
     def __repr__(self):
         return f"QuamOracle({self.path})"
@@ -23,8 +23,8 @@ class QuamOracle(QuamBaseClass, Munch):
         self.set_config_vars()
         self.user_params = list(self.config_vars.params.keys())
         for (k,v) in self.instruments.items():
-            self.quantum_machine_names.append(k)
-            v.build_qua_config()
+            self.quantum_machines.append(k)
+            v.build()
             self[k] = Munch()
             self[k]["elements"] = list(v.config["elements"].keys())
             self[k]["pulses"] = list(v.config["pulses"].keys())

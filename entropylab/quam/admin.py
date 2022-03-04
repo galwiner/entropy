@@ -48,7 +48,7 @@ class QuamAdmin(QuamBaseClass, Munch):
         self.set_config_vars()
         for (k,v) in self.items():
             if isinstance(v, QMInstrument):
-                v.build_qua_config()
+                v.build()
 
     def commit(self, label:str):
         objs = dict()
