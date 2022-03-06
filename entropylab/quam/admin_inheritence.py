@@ -1,16 +1,11 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum, auto
 from typing import Any
-from attr import attr
+
+from entropylab.quam.param_store import InProcessParamStore
 from qualang_tools.config import ConfigBuilder
-from qualang_tools.config.parameters import ConfigVar
 from qualang_tools.config import components as qua_components
-from tomlkit import value
+from qualang_tools.config.parameters import ConfigVar
 
 from entropylab import LabResources, SqlAlchemyDB
-from entropylab.quam.param_store import InProcessParamStore
-from qualang_tools.config.parameters import ConfigVar
 from entropylab.quam.utils import DotDict
 
 
@@ -61,18 +56,16 @@ b = a(name='xmon', I=cont.analog_output(1), Q=cont.analog_output(2),
 
 )
 
-
 class MyClass:
     def __init__(self):
         self.collection1 = DotDict()
         self.collection2 = DotDict()
 
-    def _find(self,name:str):
+    def _find(self, name: str):
         if name in self.collection1.keys():
             self.collection1[name]
         elif name in self.collection2.keys():
             self.collection2[name]
-
 
     def __getattribute__(self, name: str) -> Any:
         print(name)
@@ -84,11 +77,13 @@ class MyClass:
         elif name in self.collection2.keys():
             self.collection2[name]
 
-my= MyClass()
-my.collection1.a=1
-my.collection2.b=2
+
+my = MyClass()
+my.collection1.a = 1
+my.collection2.b = 2
 print(my.a)
 print(my.b)
+
 
 class QuamTransmon(QuamElement, qua_components.Transmon):
     def __init__(self, **kwargs):
@@ -145,20 +140,22 @@ class QuamAdmin():
             cb.add(self.config_builder_objects[k])
         return cb.build()
 
-        #inside add_instrument use labResources
-    def add_instrument(self,name,instrument):
-        self.instruments.register_resource(name,instrument)
+        # inside add_instrument use labResources
+
+    def add_instrument(self, name, instrument):
+        self.instruments.register_resource(name, instrument)
 
     admin.add_instrument(name="flux_driver", DummyInst)
 
-        def mySetter(val):
-            def volt_from_MHZ(val):
-                return ((val + 3) /12)
-            admin.flux_driver.v = volt_from_MHZ(val)
+    def mySetter(val):
+        def volt_from_MHZ(val):
+            return ((val + 3) / 12)
 
-        xmon.add_attribute('flux',admin.flux_driver.v_from_MHz)
+        admin.flux_driver.v = volt_from_MHZ(val)
 
-        admin.add(xmon)
-        admin.save_to_store()
+    xmon.add_attribute('flux', admin.flux_driver.v_from_MHz)
 
-        quam.xmon.flux = 1
+    admin.add(xmon)
+    admin.save_to_store()
+
+    quam.xmon.flux = 1

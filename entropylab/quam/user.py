@@ -1,13 +1,12 @@
 from munch import Munch
-
-from entropylab.quam.core import QuamBaseClass
-from entropylab import LabResources, SqlAlchemyDB
 from qm.QuantumMachinesManager import QuantumMachinesManager
+
+from entropylab import LabResources, SqlAlchemyDB
+from entropylab.quam.core import QuamBaseClass
 
 
 class QuamUser(QuamBaseClass):
-    
-    def __init__(self, path='.entropy', host="127.0.0.1"):
+    def __init__(self, path=".entropy", host="127.0.0.1"):
         super().__init__(path)
         self.host = host
         self.elements = Munch()

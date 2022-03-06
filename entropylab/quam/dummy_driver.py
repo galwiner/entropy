@@ -14,7 +14,7 @@ class DummyInst(object):
 
     def connect(self):
         self.connection = True
-        print( f"opened connection to {self.name}")
+        print(f"opened connection to {self.name}")
 
     def close(self):
         self.connection = False
@@ -22,8 +22,7 @@ class DummyInst(object):
 
 
 class DummyDC(DummyInst):
-
-    def __init__(self, name: str=""):
+    def __init__(self, name: str = ""):
         super().__init__(name)
         self._v1 = None
 
@@ -34,4 +33,4 @@ class DummyDC(DummyInst):
     @v1.setter
     def v1(self, val: float):
         self._v1 = val
-        #print(f"instrument name {self.name}, set voltage to {val}")
+        # print(f"instrument name {self.name}, set voltage to {val}")

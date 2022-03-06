@@ -1,13 +1,11 @@
 from cached_property import cached_property
 
-from entropylab.quam.core import QuamBaseClass
 from entropylab import LabResources, SqlAlchemyDB
+from entropylab.quam.core import QuamBaseClass
 
-from qm.QuantumMachinesManager import QuantumMachinesManager
 
 class QuamOracle(QuamBaseClass):
-    
-    def __init__(self, path='.entropy') -> None:
+    def __init__(self, path=".entropy") -> None:
         super().__init__(path)
         self._instrument_store = LabResources(SqlAlchemyDB(path))
         self.instrument_list = tuple(self._instrument_store.all_resources())
