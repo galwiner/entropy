@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "entropylab"
-version = "0.4.1"
+version = "0.5.0"
 description = ""
 license = "BSD-3-Clause"
 authors = [
@@ -41,7 +41,7 @@ matplotlib = "^3.4.1"
 h5py = "^3.3.0"
 alembic = "^1.6.5"
 dynaconf = "^3.1.4"
-dash = "^2.0.0"
+dash = "^2.1.0"
 dash-bootstrap-components = "^1.0.0"
 waitress = "^2.0.0"
 qualang-tools = "^0.6.5"
@@ -49,6 +49,8 @@ tinydb = "^4.6.1"
 cached-property = "^1.5.2"
 munch = "^2.5.0"
 objprint = "^0.2.0"
+hupper = "^1.10.3"
+qm-qua = "^0.3.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"
