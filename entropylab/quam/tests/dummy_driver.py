@@ -25,6 +25,9 @@ class DummyDC(DummyInst):
     def __init__(self, name: str = ""):
         super().__init__(name)
         self._v1 = None
+        self._start = None
+        self._end = None
+        self._step = None
 
     @property
     def v1(self):
@@ -34,3 +37,8 @@ class DummyDC(DummyInst):
     def v1(self, val: float):
         self._v1 = val
         # print(f"instrument name {self.name}, set voltage to {val}")
+
+    def sweep(self, start, end, step):
+        self._start = start
+        self._end = end
+        self._step = step

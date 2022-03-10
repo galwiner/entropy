@@ -1,13 +1,15 @@
-import inspect
+import dataclasses
 import os
-from abc import ABC
-from typing import Optional, Union, Dict
+from json import JSONEncoder
+from typing import Optional, Union, Dict, List
 
-import jsonpickle
 from munch import Munch
+from qm.QuantumMachinesManager import QuantumMachinesManager
 from qualang_tools.config import ConfigBuilder
-from qualang_tools.config import components as qua_components
-from qualang_tools.config.parameters import ConfigVars
+from qualang_tools.config.parameters import (
+    Parameter as cb_Parameter,
+)
+from qualang_tools.config.primitive_components import ConfigBuilderElement
 
 from entropylab import LabResources, SqlAlchemyDB
 from entropylab.api.in_process_param_store import (
@@ -15,99 +17,146 @@ from entropylab.api.in_process_param_store import (
     ParamStore,
     MergeStrategy,
 )
+from entropylab.quam.instruments_wrappers import FunctionInfo
+from entropylab.quam.quam_components import (
+    _dict_to_config_builder,
+    _QuamParameters,
+    _QuamElements,
+    _config_builder_to_dict,
+)
+
+_PARAMETERS = "_parameters_"
+_ELEMENTS = "elements"
+_QOP_INFO = "_qop_info_"
 
 
 class ParamStoreConnector:
     @staticmethod
     def connect(path) -> InProcessParamStore:
-        return InProcessParamStore(path)
+        return InProcessParamStore(path, custom_encoder=CustomJSONEncoder)
 
 
-class QuamBaseClass(ABC):
+@dataclasses.dataclass
+class QopInfo:
+    host: str
+    port: int
+
+
+class DatabaseWrapper:
+    def __init__(self, param_store) -> None:
+        super().__init__()
+        self._param_store = param_store
+
+
+class _QuamCore:
     def __init__(self, path):
         self.path = path
-        self._paramStore = ParamStoreConnector.connect(os.path.join(path, "params.db"))
-        self.config_builder_objects = Munch()
-        self._paramStore["config_objects"] = Munch()
-        self.elements = Munch()
-        self.config_vars = ConfigVars()
+        os.makedirs(path, exist_ok=True)
+
+        db_path = os.path.join(path, "params.db")
+        self._param_store = ParamStoreConnector.connect(db_path)
         self._instruments_store = LabResources(SqlAlchemyDB(path))
-        self.instruments = Munch()
+        # TODO save the default commit and checkout
+        # self.checkout(default)
 
-    def commit(self, label: str = None):
-        self.save()
-        return self.params.commit(label)
+        self._initialize()
 
-    def merge(
-            self,
-            theirs: Union[Dict, ParamStore],
-            merge_strategy: Optional[MergeStrategy] = MergeStrategy.OURS,
-    ):
-        self.params.merge(theirs, merge_strategy)
+    def _initialize(self):
+        if _ELEMENTS not in self._param_store:
+            self._param_store[_ELEMENTS] = Munch()
+        if _PARAMETERS not in self._param_store:
+            self._param_store[_PARAMETERS] = Munch()
+
+        self._parameters = _QuamParameters(self._param_store[_PARAMETERS])
+        self._elements = _QuamElements(self._param_store[_ELEMENTS])
 
     @property
-    def params(self):
-        return self._paramStore
+    def parameters(self):
+        return self._parameters
 
-    def build_qua_config(self):
+    @property
+    def elements(self):
+        return self._elements
+
+    @property
+    def database(self):
+        return self._param_store
+
+    @property
+    def instruments(self):
+        return self._instruments_store
+
+    def add(self, obj):
+        # TODO check there's no element with the same name
+        if isinstance(obj, ConfigBuilderElement):
+            element_dict = _config_builder_to_dict(obj, obj.name)
+            self._param_store[_ELEMENTS][element_dict["name"]] = element_dict
+        else:
+            raise ValueError(f"element of type {type(obj)} is not supported")
+
+    def commit(self, label: str = None):
+        # TODO should handle instruments as well?
+        return self._param_store.commit(label)
+
+    def checkout(
+        self,
+        commit_id: Optional[str] = None,
+        commit_num: Optional[int] = None,
+        move_by: Optional[int] = None,
+    ):
+        # TODO should handle instruments as well?
+        self._param_store.checkout(
+            commit_id=commit_id, commit_num=commit_num, move_by=move_by
+        )
+        # TODO check there's something there
+        self._initialize()
+
+    def merge(
+        self,
+        theirs: Union[Dict, ParamStore],
+        merge_strategy: Optional[MergeStrategy] = MergeStrategy.OURS,
+    ):
+        self._param_store.merge(theirs, merge_strategy)
+
+    def build_qua_config(self) -> ConfigBuilder:
         cb = ConfigBuilder()
-        self.config_vars.set(
-            **without_keys(self.params, ["config_objects", "instruments"])
-        )
-        for k in self.config_builder_objects.keys():
-            cb.add(self.config_builder_objects[k])
-        return cb.build()
+        for v in self._elements.get_elements():
+            cb_element = _dict_to_config_builder(v, self._parameters)
+            if cb_element is not None:
+                cb.add(cb_element)
+        return cb
 
-    def load(self, c_id):
-        self.params.checkout(c_id)
-        (self.config_vars, self.config_builder_objects) = jsonpickle.decode(
-            self.params["config_objects"]
-        )
-        for k in self.config_builder_objects.keys():
-            self.elements[k] = self.config_builder_objects[k]
-        self.config_vars.set(
-            **without_keys(self.params, ["config_objects", "instruments"])
+    def get_instruments(
+        self,
+        name,
+        experiment_args: Optional[List] = None,
+        experiment_kwargs: Optional[Dict] = None,
+    ):
+        return self._instruments_store.get_resource(
+            name, experiment_args, experiment_kwargs
         )
 
-    def save(self):
-        self._paramStore["config_objects"] = jsonpickle.encode(
-            (self.config_vars, self.config_builder_objects)
-        )
-        self._serialize_instruments()
+    def set_instrument(self, name, resource_class, *args, **kwargs):
+        if self._instruments_store.resource_exist(name):
+            self._instruments_store.remove_resource(name)
+            self._instruments_store.register_resource(
+                name, resource_class, *args, **kwargs
+            )
+        else:
+            self._instruments_store.register_resource(
+                name, resource_class, *args, **kwargs
+            )
 
-    def _serialize_instruments(self):
-        self._paramStore["instruments"] = {}
-        for k, v in self.instruments.items():
-            self._paramStore["instruments"][k] = {
-                "name": k,
-                "methods": self._method_extract(v),
-            }
+    def remove_resource(self, name):
+        self._instruments_store.remove_resource(name)
 
-    def _method_extract(self, obj):
-        methods = inspect.getmembers(obj, predicate=inspect.ismethod)
-        print("methods: ", methods)
-        return methods
+    def new_parameter(self, name, setter, **kwargs):
+        # add both to the config builder vars, and save all info in quam
+        self._parameters.parameter(name, setter, **kwargs)
+        return {
+            "type_cls": "UserParameter",
+            "name": name,
+        }
 
-
-# this class represents an entity that can control  instruments
-class QuamElement(object):
-    def __init__(self, **kwargs):
-        self.instruments = Munch()
-        super().__init__(**kwargs)
-
-
-cb_objs = ["Controller", "Transmon", "ReadoutResonator"]
-for obj in cb_objs:
-    globals()["Quam" + obj] = type(
-        "Quam" + obj, (QuamElement, getattr(qua_components, obj)), {}
-    )
-
-
-def without_keys(d, keys):
-    return {x: d[x] for x in d if x not in keys}
-
-
-class QuamFluxTunableXmon(qua_components.Transmon, QuamElement):
-    def __init__(self, flux_channel, *args, **kwargs):
-        self.flux_channel = flux_channel
-        super().__init__(*args, **kwargs)
+    def get_user_parameter(self, name):
+        return self._parameters.get_config_var(name)
