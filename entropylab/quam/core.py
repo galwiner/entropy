@@ -1,14 +1,10 @@
 import dataclasses
 import os
-from json import JSONEncoder
 from typing import Optional, Union, Dict, List
 
 from munch import Munch
 from qm.QuantumMachinesManager import QuantumMachinesManager
 from qualang_tools.config import ConfigBuilder
-from qualang_tools.config.parameters import (
-    Parameter as cb_Parameter,
-)
 from qualang_tools.config.primitive_components import ConfigBuilderElement
 
 from entropylab import LabResources, SqlAlchemyDB
@@ -17,7 +13,6 @@ from entropylab.api.in_process_param_store import (
     ParamStore,
     MergeStrategy,
 )
-from entropylab.quam.instruments_wrappers import FunctionInfo
 from entropylab.quam.quam_components import (
     _dict_to_config_builder,
     _QuamParameters,
@@ -160,3 +155,19 @@ class _QuamCore:
 
     def get_user_parameter(self, name):
         return self._parameters.get_config_var(name)
+
+    def set_qop(self, arg, host, port):
+        def _set_qop_info(_host, _port):
+            _info = {"host": _host, "port": _port}
+            self._param_store[f"{_QOP_INFO}/{_host}"] = _info
+
+        if arg is not None:
+            # should accept arg (enum/qmm) or named host and port
+            if isinstance(arg, QuantumMachinesManager):
+                _set_qop_info(arg._server_details.host, arg._server_details.port)
+            elif isinstance(arg, QopInfo):
+                _set_qop_info(arg.host, arg.port)
+        elif host is not None and port is not None:
+            _set_qop_info(host, port)
+        else:
+            raise ValueError("QOP info is not valid")

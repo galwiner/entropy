@@ -1,10 +1,12 @@
 from typing import Type, Optional, Any
 
 from munch import Munch
+from qualang_tools.config.components import Controller
 
+from entropylab.quam._element_access import _AdminElementAccess
 from entropylab.quam.core import _QuamCore, DatabaseWrapper
 from entropylab.quam.instruments_wrappers import InstrumentAccess
-from entropylab.quam.quam_components import _QuamParameters, Parameter
+from entropylab.quam.quam_components import _QuamParameters
 
 
 class ParametersValueWrapper(Munch):
@@ -45,35 +47,6 @@ class ParametersValueWrapper(Munch):
 
     def list_names(self):
         return self._parameters.get_names()
-
-
-class _AdminElementAccess(Munch):
-    def __init__(self, element, context) -> None:
-        super().__init__()
-        self._element = element
-        self._context = context
-
-    def __getattr__(self, item):
-        # TODO - add here a real wrapper for auto complete
-        if hasattr(self._element, item):
-            return _AdminElementAccess(getattr(self._element, item), self._context)
-        else:
-            raise AttributeError(f"attribute {item} is not found")
-
-    def __setattr__(self, item, value):
-        if hasattr(self._element, item):
-            attr = getattr(self._element, item)
-            if (
-                isinstance(attr, dict)
-                and "type_cls" in attr
-                and attr["type_cls"] == "UserParameter"
-            ):
-                param: Parameter = self._context.get_user_parameter(name=attr["name"])
-                param.set_value(value)
-            else:
-                raise AttributeError(f"quam user can not set attribute {item} value")
-        else:
-            object.__setattr__(self, item, value)
 
 
 class QuamAdmin:
@@ -132,22 +105,14 @@ class QuamAdmin:
         )
 
     def set_qop(self, arg=None, host=None, port=None):
-        # should accept arg (enum/qmm) or named host and port
-        # elif isinstance(obj, QuantumMachinesManager):
-        #     info = {
-        #         "host": obj._server_details.host,
-        #         "port": obj._server_details.port,
-        #     }
-        #     self._param_store[f"{_QOP_INFO}/{info['host']}"] = info
-        # elif isinstance(obj, QopInfo):
-        #     info = {"host": obj.host, "port": obj.port}
-        #     self._param_store[f"{_QOP_INFO}/{info['host']}"] = info
-        raise NotImplementedError()
+        self._core.set_qop(arg, host, port)
 
     def add_controller(self, name, type):
         # TODO maybe query qop
-        # TODO what does it return?
-        raise NotImplementedError()
+        # TODO should it return QuamElement?
+        cont = Controller(name)
+        self._core.add(cont)
+        return cont
 
     def set_default_commit(self, commit_id):
         raise NotImplementedError()

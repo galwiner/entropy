@@ -214,13 +214,16 @@ def _config_builder_to_dict(obj, name):
         d["lo_frequency"] = obj.lo_frequency
     elif isinstance(obj, config_components.Transmon):
         d["intermediate_frequency"] = obj.intermediate_frequency
-        d["operations"] = [
-            _config_builder_to_dict(op, op.name) for op in obj.drive_operations
-        ]
+        if hasattr(obj, "drive_operations") and obj.drive_operations is not None:
+            d["operations"] = [
+                _config_builder_to_dict(op, op.name) for op in obj.drive_operations
+            ]
         d["I"] = _config_builder_to_dict(obj.drive_I, obj.drive_I.info)
         d["Q"] = _config_builder_to_dict(obj.drive_Q, obj.drive_Q.info)
-        d["mixer"] = _config_builder_to_dict(obj.mixer, obj.mixer.name)
-        d["lo_frequency"] = obj.lo_frequency
+        if hasattr(obj, "mixer") and obj.mixer is not None:
+            d["mixer"] = _config_builder_to_dict(obj.mixer, obj.mixer.name)
+        if hasattr(obj, "lo_frequency") and obj.lo_frequency is not None:
+            d["lo_frequency"] = obj.lo_frequency
     elif isinstance(obj, config_components.Coupler):
         d["operations"] = [
             _config_builder_to_dict(op, op.name) for op in obj.operations

@@ -1,10 +1,10 @@
 from typing import Optional
 
-from munch import Munch
 from qm.QuantumMachinesManager import QuantumMachinesManager
 
+from entropylab.quam._element_access import _UserElementAccess, _UserElementContext
 from entropylab.quam.core import _QuamCore, _QOP_INFO, DatabaseWrapper
-from entropylab.quam.quam_components import Parameter, _QuamElements
+from entropylab.quam.quam_components import _QuamElements
 
 
 class _QuamUserUtils:
@@ -24,6 +24,8 @@ class _QuamUserUtils:
             )
         except BaseException:
             self._qmm = None
+
+        self._element_context = _UserElementContext(self._core)
 
     @property
     def config(self):
@@ -68,43 +70,6 @@ class _QuamUserUtils:
         return self._core.commit(label)
 
 
-class _UserElementAccess(Munch):
-    is_frozen = False
-
-    def __init__(self, element, context) -> None:
-        super().__init__()
-        self._element = element
-        self._context: _QuamUserUtils = context
-        self.is_frozen = True
-
-    def __getattr__(self, item):
-        # TODO - add here a real wrapper for auto complete
-        if self.is_frozen and hasattr(self._element, item):
-            return _UserElementAccess(getattr(self._element, item), self._context)
-        else:
-            try:
-                object.__getattribute__(self, item)
-            except:
-                raise AttributeError(f"attribute {item} is not found")
-
-    def __setattr__(self, item, value):
-        if self.is_frozen and item in self._element:
-            attr = self._element[item]
-            if (
-                isinstance(attr, dict)
-                and "type_cls" in attr
-                and attr["type_cls"] == "UserParameter"
-            ):
-                param: Parameter = self._context._core.get_user_parameter(
-                    name=attr["name"]
-                )
-                param.set_value(value)
-            else:
-                raise AttributeError(f"quam user can not set attribute {item} value")
-        else:
-            object.__setattr__(self, item, value)
-
-
 class QuamUser:
     def __init__(self, path) -> None:
         super().__init__()
@@ -114,4 +79,4 @@ class QuamUser:
         return f"QuamUser({self._core.path})"
 
     def __getattr__(self, item):
-        return _UserElementAccess(self.utils.elements.get(item), self.utils)
+        return _UserElementAccess(self.utils.elements.get(item), self.utils._element_context)
