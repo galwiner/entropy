@@ -5,7 +5,7 @@ import json
 import threading
 import time
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Callable
+from typing import Optional, Dict, Any, List, Callable, Type
 
 import pandas as pd
 from munch import Munch
@@ -30,10 +30,13 @@ class InProcessParamStore(ParamStore, Munch):
         path: Optional[str] = None,
         theirs: Optional[Dict | ParamStore] = None,
         merge_strategy: Optional[MergeStrategy] = MergeStrategy.THEIRS,
+        custom_encoder: Type[json.JSONEncoder] = None,
+        custom_decoder: Type[json.JSONDecoder] = None,  # TODO uri no way for decoder
     ):
 
         super().__init__()
-
+        self.__custom_encoder = custom_encoder
+        self.__custom_decoder = custom_decoder
         self.__lock = threading.RLock()
         self.__base_commit_id: Optional[str] = None  # last commit checked out/committed
         self.__base_doc_id: Optional[int] = None  # tinydb document id of last commit...
@@ -48,6 +51,11 @@ class InProcessParamStore(ParamStore, Munch):
             self.__db = TinyDB(path)
         if theirs is not None:
             self.merge(theirs, merge_strategy)
+
+        commits = self.list_commits()
+        if len(commits) > 0:
+            self.__base_commit_id = commits[-1].id
+            # self.__base_doc_id = commits[-1].id
 
     def __enter__(self):
         return self
@@ -124,18 +132,20 @@ class InProcessParamStore(ParamStore, Munch):
             return doc["metadata"]["id"]
 
     def __build_document(self, label: Optional[str] = None) -> dict:
-        metadata = self.__build_metadata(label)
-        params = self.toDict()
-        return Munch(metadata=metadata.__dict__, params=params, tags=self.__tags)
+        metadata, params_json = self.__build_metadata(label)
+        # params = self.toDict()
+        return Munch(metadata=metadata.__dict__, params=params_json, tags=self.__tags)
 
     def __build_metadata(self, label: Optional[str] = None) -> Metadata:
         metadata = Metadata()
         metadata.ns = time.time_ns()
-        params_json = json.dumps(self.toDict(), sort_keys=True, ensure_ascii=True)
+        params_json = json.dumps(
+            self.toDict(), sort_keys=True, ensure_ascii=True, cls=self.__custom_encoder
+        )
         commit_encoded = (params_json + str(metadata.ns)).encode("utf-8")
         metadata.id = hashlib.sha1(commit_encoded).hexdigest()
         metadata.label = label
-        return metadata
+        return metadata, params_json
 
     def checkout(
         self,
@@ -146,7 +156,8 @@ class InProcessParamStore(ParamStore, Munch):
         with self.__lock:
             commit = self.__get_commit(commit_id, commit_num, move_by)
             self.clear()
-            self.update(commit["params"])
+            params = json.loads(commit["params"], cls=self.__custom_decoder)
+            self.update(params)
             self.__tags = commit["tags"]
             self.__base_commit_id = commit_id
             self.__base_doc_id = commit.doc_id
@@ -197,8 +208,11 @@ class InProcessParamStore(ParamStore, Munch):
         return result
 
     def __get_commit_by_move_by(self, move_by: int):
-        doc_id = self.__base_doc_id + move_by
-        result = self.__db.get(doc_id=doc_id)
+        if self.__base_doc_id is not None:
+            doc_id = self.__base_doc_id + move_by
+            result = self.__db.get(doc_id=doc_id)
+        else:
+            raise EntropyError(f"No base commit found")
         return result
 
     """ Merge """
@@ -290,6 +304,7 @@ class InProcessParamStore(ParamStore, Munch):
                 return self.__tags[tag]
 
     """ Temporary State """
+    # TODO add contains?
 
     def save_temp(self) -> None:
         """

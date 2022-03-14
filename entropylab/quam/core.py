@@ -1,5 +1,6 @@
 import dataclasses
 import os
+from json import JSONEncoder
 from typing import Optional, Union, Dict, List
 
 from munch import Munch
@@ -13,6 +14,7 @@ from entropylab.api.in_process_param_store import (
     ParamStore,
     MergeStrategy,
 )
+from entropylab.quam.instruments_wrappers import FunctionInfo
 from entropylab.quam.quam_components import (
     _dict_to_config_builder,
     _QuamParameters,
@@ -23,6 +25,14 @@ from entropylab.quam.quam_components import (
 _PARAMETERS = "_parameters_"
 _ELEMENTS = "elements"
 _QOP_INFO = "_qop_info_"
+
+
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, FunctionInfo):
+            dic = obj.__dict__
+            return dic
+        return JSONEncoder.default(self, obj)
 
 
 class ParamStoreConnector:
