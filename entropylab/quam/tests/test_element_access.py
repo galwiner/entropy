@@ -39,7 +39,7 @@ def test_user_get_set_attr(create_element):
     ea = _UserElementAccess(core.elements.get("xmon"), _UserElementContext(core))
 
     assert ea.I is not None
-    assert isinstance(ea.xmon, dict)
+    assert isinstance(ea, dict)
 
     #TODO guy ask Gal - what happens here?
     # ea.xmon = QuamFluxTunableXmon(
@@ -52,7 +52,7 @@ def test_user_get_set_attr(create_element):
     #     ),
     # )
 
-    assert ea.xmon.I.offset == 1.0
+    assert ea.I.offset == 1.0
 
 
     #parameters:
@@ -64,7 +64,9 @@ def test_user_get_set_attr(create_element):
 def test_admin_get_set_attr(create_element):
     # element_access.ro_amp
     core = _QuamCore(create_element)
-    ea = _AdminElementAccess(core.elements, _UserElementContext(core))
+    c = core.database.list_commits("test")
+    core.checkout(c[0].id)
+    ea = _AdminElementAccess(core.elements._elements_dicts, _UserElementContext(core))
 
     assert ea.xmon is not None
     assert isinstance(ea.xmon, dict)

@@ -13,64 +13,58 @@ class _UserElementContext:
 class _AdminElementAccess(Munch):
     def __init__(self, element: dict, context: _UserElementContext) -> None:
         super().__init__()
-        self._element = element
-        self._context: _UserElementContext = context
+        # TODO it's not the actual munch?
+        for e in element.keys():
+            super(_AdminElementAccess, self).__setattr__(e, element[e])
+        super(_AdminElementAccess, self).__setattr__("_context", context)
 
     def __getattr__(self, item):
-        # TODO - add here a real wrapper for auto complete
-        if hasattr(self._element, item):
-            return _AdminElementAccess(getattr(self._element, item), self._context)
+        res = super(_AdminElementAccess, self).__getattr__(item)
+        if isinstance(res, dict):
+            return _AdminElementAccess(res, super(_AdminElementAccess, self).__getattr__("_context"))
         else:
-            raise AttributeError(f"attribute {item} is not found")
+            return res
+        # TODO - add here a real wrapper for auto complete?
 
     def __setattr__(self, item, value):
-        if hasattr(self._element, item):
-            attr = getattr(self._element, item)
-            if (
-                    isinstance(attr, dict)
-                    and "type_cls" in attr
-                    and attr["type_cls"] == "UserParameter"
-            ):
-                param: Parameter = self._context.get_user_parameter(name=attr["name"])
-                param.set_value(value)
-            else:
-                raise AttributeError(f"quam user can not set attribute {item} value")
+        res = super(_AdminElementAccess, self).__getattr__(item)
+        # TODO this is user?
+        if (
+                isinstance(res, dict)
+                and "type_cls" in res
+                and res["type_cls"] == "UserParameter"
+        ):
+            param: Parameter = super(_AdminElementAccess, self).__getattr__("_context").get_user_parameter(name=res["name"])
+            param.set_value(value)
         else:
-            object.__setattr__(self, item, value)
+            raise AttributeError(f"quam user can not set attribute {item} value")
 
 
 class _UserElementAccess(Munch):
-    is_frozen = False
-
-    def __init__(self, element: Munch, context: _UserElementContext) -> None:
+    def __init__(self, element: dict, context: _UserElementContext) -> None:
         super().__init__()
-        self._element = element
-        self._context: _UserElementContext = context
-        self.is_frozen = True
+        # TODO it's not the actual munch?
+        for e in element.keys():
+            super(_UserElementAccess, self).__setattr__(e, element[e])
+        super(_UserElementAccess, self).__setattr__("_context", context)
 
     def __getattr__(self, item):
-        # TODO - add here a real wrapper for auto complete
-        if self.is_frozen and hasattr(self._element, item):
-            return _UserElementAccess(getattr(self._element, item), self._context)
+        res = super(_UserElementAccess, self).__getattr__(item)
+        if isinstance(res, dict):
+            return _UserElementAccess(res, super(_UserElementAccess, self).__getattr__("_context"))
         else:
-            try:
-                object.__getattribute__(self, item)
-            except BaseException:
-                raise AttributeError(f"attribute {item} is not found")
+            return res
+        # TODO - add here a real wrapper for auto complete?
 
     def __setattr__(self, item, value):
-        if self.is_frozen and item in self._element:
-            attr = self._element[item]
-            if (
-                    isinstance(attr, dict)
-                    and "type_cls" in attr
-                    and attr["type_cls"] == "UserParameter"
-            ):
-                param: Parameter = self._context.core.get_user_parameter(
-                    name=attr["name"]
-                )
-                param.set_value(value)
-            else:
-                raise AttributeError(f"quam user can not set attribute {item} value")
+        res = super(_UserElementAccess, self).__getattr__(item)
+        # TODO this is user?
+        if (
+                isinstance(res, dict)
+                and "type_cls" in res
+                and res["type_cls"] == "UserParameter"
+        ):
+            param: Parameter = super(_UserElementAccess, self).__getattr__("_context").get_user_parameter(name=res["name"])
+            param.set_value(value)
         else:
-            object.__setattr__(self, item, value)
+            raise AttributeError(f"quam user can not set attribute {item} value")
