@@ -93,6 +93,7 @@ def admin_part(admin: QuamAdmin):
 
     admin.add(ror)
 
+    #TODO gal - should this work? if it's a user parameter, it will disable it form being a user parameter?
     admin.elements.ror.time_of_flight = 28
 
     admin.user_parameters.list_names()

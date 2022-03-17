@@ -90,6 +90,7 @@ class InProcessParamStore(ParamStore, Munch):
             with self.__lock:
                 super().__setitem__(key, value)
                 self.__is_dirty = True
+                #TODO issue here - what if i change a paramter inside? then i don't commit when i want. not sure if we need it
 
     def __getitem__(self, key: str) -> Any:
         with self.__lock:
@@ -122,8 +123,8 @@ class InProcessParamStore(ParamStore, Munch):
 
     def commit(self, label: Optional[str] = None) -> str:
         with self.__lock:
-            if not self.__is_dirty:
-                return self.__base_commit_id
+            # if not self.__is_dirty:
+            #     return self.__base_commit_id
             doc = self.__build_document(label)
             doc_id = self.__db.insert(doc)
             self.__base_commit_id = doc["metadata"]["id"]

@@ -18,27 +18,34 @@ class QuamElement(abc.ABC):
 
 
 class Parameter:
-    def __init__(self, name: str, d: Dict):
+    def __init__(self, d: Dict):
         super(Parameter, self).__init__()
-        self.name = name
         self.d = d
+
+    @property
+    def name(self):
+        return self.d["name"]
 
     def __call__(self, *args, **kwargs):
         if self.d["setter"] is not None:
             return self.d["setter"](*args, **kwargs)
         elif self.d["is_value_set"]:
-            return self.d["_value"]
+            return self.d["value"]
         else:
             raise AssertionError(f"Parameter {self.name} is not set")
 
     @property
     def value(self):
-        return self.d["_value"]
+        return self.d["value"]
+
+    @value.setter
+    def value(self, v):
+        return self.set_value(v)
 
     def set_value(self, value, *args, **kwargs):
         self.d["is_value_set"] = True
-        self.d["_value"] = value
-        if self.d["setter"] is not None:
+        self.d["value"] = value
+        if "setter" in self.d and self.d["setter"] is not None:
             return self.d["setter"](*args, **kwargs)
 
 
@@ -58,7 +65,10 @@ class _QuamParameters(object):
     def parameter(self, name, setter=None, **kwargs):
         self._sanitize_name(name)
         if name not in self.parameters_dicts.keys():
-            self.parameters_dicts[name] = {}
+            self.parameters_dicts[name] = {
+                "name": name,
+                "value": None
+            }
             if "initial" in kwargs:
                 initial = kwargs.get("initial")
                 self.parameters_dicts[name]["initial"] = initial
@@ -87,7 +97,7 @@ class _QuamParameters(object):
         return self.parameters_dicts.keys()
 
     def get_config_var(self, name):
-        return Parameter(name, self.parameters_dicts[name])
+        return Parameter(self.parameters_dicts[name])
 
 
 class _QuamElements(object):

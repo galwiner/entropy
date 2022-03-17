@@ -3,6 +3,7 @@ from _pytest.fixtures import fixture
 from entropylab.quam._element_access import _AdminElementAccess, _UserElementContext, _UserElementAccess
 from entropylab.quam.admin import QuamAdmin
 from entropylab.quam.core import _QuamCore
+from entropylab.quam.quam_components import Parameter
 from entropylab.quam.tests.dummy_driver import DummyDC
 from entropylab.quam.tests.test_full_flow_with_device import QuamFluxTunableXmon
 
@@ -26,6 +27,7 @@ def create_element(tmpdir):
         ),
     )
     admin.add(xmon)
+    admin.user_parameters.xmon_if = 1
     admin.commit("test")
 
     return tmpdir
@@ -83,6 +85,19 @@ def test_admin_get_set_attr(create_element):
     # )
 
     assert ea.xmon.I.offset == 1.0
+
+    assert isinstance(ea.xmon.intermediate_frequency, Parameter)
+    assert isinstance(ea.xmon["intermediate_frequency"], Parameter)
+    assert ea.xmon["intermediate_frequency"].name == "xmon_if"
+    assert ea.xmon["intermediate_frequency"].value == 1
+    ea.xmon["intermediate_frequency"].value = 2
+    assert ea.xmon["intermediate_frequency"].value == 2
+    core.commit("2")
+    core.checkout(c[0].id)
+    assert ea.xmon["intermediate_frequency"].value == 1
+    c = core.database.list_commits("2")
+    core.checkout(c[0].id)
+    assert ea.xmon["intermediate_frequency"].value == 2
 
 
     #parameters:

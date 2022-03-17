@@ -31,6 +31,7 @@ class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, FunctionInfo):
             dic = obj.__dict__
+            dic["type_cls"] = "FunctionInfo"
             return dic
         return JSONEncoder.default(self, obj)
 
