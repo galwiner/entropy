@@ -22,6 +22,8 @@ from entropylab.quam.quam_components import (
     _config_builder_to_dict,
 )
 
+DEFAULT_COMMIT = "default.commit"
+
 _PARAMETERS = "_parameters_"
 _ELEMENTS = "elements"
 _QOP_INFO = "_qop_info_"
@@ -49,21 +51,34 @@ class QopInfo:
 
 
 class DatabaseWrapper:
+    # TODO different wrapper for admin, user, oracle
     def __init__(self, param_store) -> None:
         super().__init__()
-        self._param_store = param_store
+        self._param_store: ParamStore = param_store
+
+    def list_commits(self, label: str):
+        return self._param_store.list_commits(label)
 
 
 class _QuamCore:
     def __init__(self, path):
+        if path is None:
+            path = ".entropy"
         self.path = path
         os.makedirs(path, exist_ok=True)
 
         db_path = os.path.join(path, "params.db")
         self._param_store = ParamStoreConnector.connect(db_path)
         self._instruments_store = LabResources(SqlAlchemyDB(path))
-        # TODO save the default commit and checkout
-        # self.checkout(default)
+
+        p = os.path.join(self.path, DEFAULT_COMMIT)
+        commit = None
+        if os.path.isfile(p):
+            with open(p, "r") as f:
+                commit = f.readline()
+                commit = commit.strip()
+        if commit is not None:
+            self.checkout(commit_id=commit)
 
         self._initialize()
 
@@ -182,3 +197,11 @@ class _QuamCore:
             _set_qop_info(host, port)
         else:
             raise ValueError("QOP info is not valid")
+
+    def set_default_commit(self, commit_id):
+        p = os.path.join(self.path, DEFAULT_COMMIT)
+        with open(p, "w") as f:
+            f.write(commit_id)
+
+    def get_current_commit(self) -> str:
+        return self._param_store.commit_id

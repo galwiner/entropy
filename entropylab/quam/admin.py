@@ -46,13 +46,17 @@ class ParametersValueWrapper(Munch):
             super(ParametersValueWrapper, self).__setitem__(key, value)
 
     def list_names(self):
-        return self._parameters.get_names()
+        params: _QuamParameters = super().__getattr__("_parameters")
+        return set(params.get_names())
 
 
 class QuamAdmin:
-    def __init__(self, path: str):
+    def __init__(self, path):
         super().__init__()
-        self._core = _QuamCore(path)
+        if isinstance(path, _QuamCore):
+            self._core = path
+        else:
+            self._core = _QuamCore(path)
         self._instruments = InstrumentAccess(self._core.instruments)
         self._params_wrapper = ParametersValueWrapper(self._core.parameters)
 
@@ -77,7 +81,7 @@ class QuamAdmin:
 
     @property
     def elements(self) -> _AdminElementAccess:
-        return _AdminElementAccess(self._core.elements, None)
+        return _AdminElementAccess(self._core.elements._elements_dicts, None)
 
     @property
     def user_parameters(self) -> ParametersValueWrapper:
@@ -115,4 +119,8 @@ class QuamAdmin:
         return cont
 
     def set_default_commit(self, commit_id):
-        raise NotImplementedError()
+        self._core.set_default_commit(commit_id)
+
+    @property
+    def commit_id(self):
+        return self._core.get_current_commit()

@@ -6,6 +6,7 @@ from qualang_tools.config.primitive_components import Operation, Weights, Matrix
 
 from entropylab.quam.admin import QuamAdmin
 from entropylab.quam.initialization import quam_init
+from entropylab.quam.oracle import QuamOracle
 from entropylab.quam.quam_components import QuamElement
 from entropylab.quam.tests.dummy_driver import DummyDC
 from entropylab.quam.user import QuamUser
@@ -93,10 +94,18 @@ def admin_part(admin: QuamAdmin):
 
     admin.add(ror)
 
-    #TODO gal - should this work? if it's a user parameter, it will disable it form being a user parameter?
+    # TODO gal - should this work? if it's a user parameter, it will disable it form being a user parameter?
     admin.elements.ror.time_of_flight = 28
 
-    admin.user_parameters.list_names()
+    assert admin.user_parameters.list_names() == {
+        "ro_duration",
+        "flux_driver",
+        "ror_if",
+        "xmon_lo",
+        "ro_amp",
+        "xmon_if",
+        "ror_lo",
+    }
     admin.user_parameters.xmon_if = 10e6
     admin.user_parameters["xmon_if"] = 10e6
     admin.user_parameters["xmon_lo"] = 10e6
@@ -121,20 +130,21 @@ def admin_part(admin: QuamAdmin):
     return commit_id  # this is a temporary solution for communicating between the three interfaces
 
 
-def oracle_part(oracle, commit_id):
-    assert set(oracle.element_names) == {
-        "cont1",
-        "xmon",
-        "ror",
-    }  # element can be non qua elements. maybe we need to rename. maybe this should be seperate from qua
-    assert set(oracle.qua_element_names) == {"cont1", "ror", "xmon"}
+def oracle_part(oracle: QuamOracle, commit_id):
     commit_list = oracle.database.list_commits("set config vars")
-    oracle.database.checkout(
-        commit_id
-    )  # make sure checkout from the oracle is possible.
+    assert len(commit_list) == 1
+    assert commit_list[0].id == commit_id
+    oracle.checkout(commit_id)  # make sure checkout from the oracle is possible.
+
+    assert set(oracle.element_names) == {"cont1", "xmon", "ror", }
+
+    # TODO do we still have qua and non qua elements?
+    # element can be non qua elements. maybe we need to rename. maybe this should be seperate from qua
+    # assert set(oracle.qua_element_names) == {"cont1", "ror", "xmon"}
     assert oracle.operations("ror") == ["readout_pulse"]
     assert oracle.integration_weights == ["w1", "w2"]
     assert set(oracle.user_params) == {
+        "flux_driver",
         "pi_wf_samples",
         "ro_amp",
         "ro_duration",
@@ -151,7 +161,7 @@ def quam_user_part(quam: QuamUser, commit_id):
     before = quam.utils.config
 
     # user sets some parameters
-    quam.utils.get_user_parameters()
+    print(quam.utils.user_parameters)
     quam.xmon.lo_frequency = 2e9
     quam.xmon.flux_channel = 500
     # TODO allow this as well:
@@ -182,6 +192,7 @@ def quam_user_part(quam: QuamUser, commit_id):
             #     (x for x in range(f_start, f_end, df)),
             #     interval_wait=0.1,
             # )
+            #TODO guy here i stopped
             update_frequency(quam.ror, f)
             measure(
                 quam.ror.pulses.readout_pulse,
@@ -211,5 +222,8 @@ def test_flux_tunable_qubit(tmpdir):
     commit_id = admin_part(admin)
     commit_id = oracle_part(oracle, commit_id)
     quam_user_part(quam, commit_id)
+
+    new_instance = quam_init(tmpdir)
+    assert new_instance[0].commit_id == commit_id
 
     assert True

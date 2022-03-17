@@ -2,16 +2,16 @@ from typing import Optional
 
 from cached_property import cached_property
 
-from entropylab import LabResources, SqlAlchemyDB
 from entropylab.quam.core import _QuamCore, DatabaseWrapper
 
 
 class QuamOracle:
-    def __init__(self, path=".entropy") -> None:
+    def __init__(self, path) -> None:
         super().__init__()
-        self._core = _QuamCore(path)
-        self._instrument_store = LabResources(SqlAlchemyDB(path))
-        self.instrument_names = tuple(self._instrument_store.all_resources())
+        if isinstance(path, _QuamCore):
+            self._core = path
+        else:
+            self._core = _QuamCore(path)
 
     def __repr__(self):
         return f"QuamOracle({self._core.path})"
@@ -40,8 +40,8 @@ class QuamOracle:
     def checkout(
         self,
         commit_id: Optional[str] = None,
-        commit_num: Optional[int] = None,
-        move_by: Optional[int] = None,
+            commit_num: Optional[int] = None,
+            move_by: Optional[int] = None,
     ):
         return self._core.checkout(
             commit_id=commit_id, commit_num=commit_num, move_by=move_by
@@ -50,3 +50,7 @@ class QuamOracle:
     @property
     def database(self) -> DatabaseWrapper:
         return DatabaseWrapper(self._core.database)
+
+    @property
+    def commit_id(self):
+        return self._core.get_current_commit()

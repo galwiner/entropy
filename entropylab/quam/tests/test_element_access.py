@@ -1,6 +1,10 @@
 from _pytest.fixtures import fixture
 
-from entropylab.quam._element_access import _AdminElementAccess, _UserElementContext, _UserElementAccess
+from entropylab.quam._element_access import (
+    _AdminElementAccess,
+    _UserElementContext,
+    _UserElementAccess,
+)
 from entropylab.quam.admin import QuamAdmin
 from entropylab.quam.core import _QuamCore
 from entropylab.quam.quam_components import Parameter
@@ -36,14 +40,14 @@ def create_element(tmpdir):
 def test_user_get_set_attr(create_element):
     # element_access.ro_amp
     core = _QuamCore(create_element)
-    c=core.database.list_commits("test")
+    c = core.database.list_commits("test")
     core.checkout(c[0].id)
     ea = _UserElementAccess(core.elements.get("xmon"), _UserElementContext(core))
 
     assert ea.I is not None
     assert isinstance(ea, dict)
 
-    #TODO guy ask Gal - what happens here?
+    # TODO guy ask Gal - what happens here?
     # ea.xmon = QuamFluxTunableXmon(
     #     name="xmon",
     #     I=cont.analog_output(1),
@@ -56,10 +60,9 @@ def test_user_get_set_attr(create_element):
 
     assert ea.I.offset == 1.0
 
-
-    #parameters:
+    # parameters:
     # ea.xmon.intermediate_frequency
-    #instruments
+    # instruments
     # ea.xmon.flux_channel
 
 
@@ -73,7 +76,7 @@ def test_admin_get_set_attr(create_element):
     assert ea.xmon is not None
     assert isinstance(ea.xmon, dict)
 
-    #TODO guy ask Gal - what happens here?
+    # TODO guy ask Gal - what happens here?
     # ea.xmon = QuamFluxTunableXmon(
     #     name="xmon",
     #     I=cont.analog_output(1),
@@ -99,10 +102,9 @@ def test_admin_get_set_attr(create_element):
     core.checkout(c[0].id)
     assert ea.xmon["intermediate_frequency"].value == 2
 
-
-    #parameters:
+    # parameters:
     # ea.xmon.intermediate_frequency
-    #instruments
+    # instruments
     # ea.xmon.flux_channel
 
 

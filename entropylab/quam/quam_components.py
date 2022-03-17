@@ -27,7 +27,7 @@ class Parameter:
         return self.d["name"]
 
     def __call__(self, *args, **kwargs):
-        if self.d["setter"] is not None:
+        if "setter" in self.d and self.d["setter"] is not None:
             return self.d["setter"](*args, **kwargs)
         elif self.d["is_value_set"]:
             return self.d["value"]
@@ -46,7 +46,14 @@ class Parameter:
         self.d["is_value_set"] = True
         self.d["value"] = value
         if "setter" in self.d and self.d["setter"] is not None:
-            return self.d["setter"](*args, **kwargs)
+            p_setter = self.d["setter"]
+            if isinstance(p_setter, dict) and "type_cls" in p_setter and p_setter["type_cls"] == "FunctionInfo":
+                info = FunctionInfo(p_setter["_instrument_name"], p_setter["_function_name"], p_setter["_resource"])
+                # TODO guy here should get the resources, but no context.
+                print("yey")
+                return value
+            else:
+                return p_setter(value, *args, **kwargs)
 
 
 class _QuamParameters(object):
@@ -65,10 +72,7 @@ class _QuamParameters(object):
     def parameter(self, name, setter=None, **kwargs):
         self._sanitize_name(name)
         if name not in self.parameters_dicts.keys():
-            self.parameters_dicts[name] = {
-                "name": name,
-                "value": None
-            }
+            self.parameters_dicts[name] = {"name": name, "value": None}
             if "initial" in kwargs:
                 initial = kwargs.get("initial")
                 self.parameters_dicts[name]["initial"] = initial
@@ -119,15 +123,31 @@ class _QuamElements(object):
 def _config_builder_to_dict(obj, name):
     d = {
         "name": name,
-        "type_cls": obj.__class__.__name__,
     }
 
+    # get config builder type
+    type_cls = None
+    if obj.__module__.startswith("qualang_tools"):
+        type_cls = obj.__class__.__name__
+    else:
+        for base in obj.__class__.__bases__:
+            if base.__module__.startswith("qualang_tools"):
+                type_cls = base.__name__
+                break
+
+    if type_cls is not None:
+        d["type_cls"] = type_cls
+
+    if isinstance(obj, QuamElement):
+        for attr in obj.quam_attributes:
+            d[attr] = obj.quam_attributes[attr]
+
     if (
-        isinstance(obj, config_p_components.AnalogOutputPort)
-        or isinstance(obj, config_p_components.DigitalOutputPort)
-        or isinstance(obj, config_p_components.DigitalInputPort)
-        or isinstance(obj, config_p_components.AnalogOutputFilter)
-        or isinstance(obj, config_p_components.AnalogInputPort)
+            isinstance(obj, config_p_components.AnalogOutputPort)
+            or isinstance(obj, config_p_components.DigitalOutputPort)
+            or isinstance(obj, config_p_components.DigitalInputPort)
+            or isinstance(obj, config_p_components.AnalogOutputFilter)
+            or isinstance(obj, config_p_components.AnalogInputPort)
     ):
         d.update(obj.__dict__)
     elif isinstance(obj, config_components.MeasurePulse):
@@ -280,7 +300,11 @@ def _kwargs_from_dict(d: Dict, names: List[Union[str, Tuple[str]]], parameters):
     for name in names:
         if isinstance(name, str):
             if name in d:
-                kw[name] = _dict_to_config_builder(d[name], parameters)
+                current = d[name]
+                if isinstance(d[name], list):
+                    kw[name] = [_dict_to_config_builder(p, parameters) for p in current]
+                else:
+                    kw[name] = _dict_to_config_builder(current, parameters)
         else:
             if name[1] in d:
                 kw[name[0]] = _dict_to_config_builder(d[name[1]], parameters)
@@ -394,16 +418,17 @@ def _dict_to_config_builder(d: Dict, parameters: _QuamParameters) -> Any:
             **_kwargs_from_dict(d, ["controller", "port_id", "offset"], parameters)
         )
     elif d["type_cls"] == "Pulse":
-        wfs = [_dict_to_config_builder(wf, parameters) for wf in d["wfs"]]
         return config_p_components.Pulse(
             **_kwargs_from_dict(
-                d, ["name", "operation", "length", "digital_marker"], parameters
+                d, ["name", "operation", "length", "digital_marker", "wfs"], parameters
             ),
-            wfs=wfs,
         )
     elif d["type_cls"] == "MeasurePulse":
-        wfs = [_dict_to_config_builder(wf, parameters) for wf in d["wfs"]]
-        return config_components.MeasurePulse(d["name"], wfs, d["length"])
+        return config_components.MeasurePulse(
+            **_kwargs_from_dict(
+                d, ["name", "integration_weights", "length", "digital_marker", "wfs"], parameters
+            ),
+        )
     elif d["type_cls"] == "ControlPulse":
         wfs = [_dict_to_config_builder(wf, parameters) for wf in d["wfs"]]
         return config_components.ControlPulse(d["name"], wfs, d["length"])
@@ -535,4 +560,4 @@ def _dict_to_config_builder(d: Dict, parameters: _QuamParameters) -> Any:
         )
     else:
         # TODO!
-        raise NotImplementedError()
+        raise NotImplementedError(f"dict {d} not supported")

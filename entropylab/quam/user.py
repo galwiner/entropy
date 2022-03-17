@@ -10,7 +10,10 @@ from entropylab.quam.quam_components import _QuamElements
 class _QuamUserUtils:
     def __init__(self, path):
         super().__init__()
-        self._core = _QuamCore(path)
+        if isinstance(path, _QuamCore):
+            self._core = path
+        else:
+            self._core = _QuamCore(path)
         # TODO load on latest by default?
         try:
             self.checkout(move_by=0)
@@ -69,14 +72,24 @@ class _QuamUserUtils:
     def commit(self, label):
         return self._core.commit(label)
 
+    @property
+    def commit_id(self):
+        return self._core.get_current_commit()
+
+    @property
+    def user_parameters(self):
+        return self._core.parameters.get_names()
+
 
 class QuamUser:
     def __init__(self, path) -> None:
         super().__init__()
-        self.utils = _QuamUserUtils(path)
+        self.utils: _QuamUserUtils = _QuamUserUtils(path)
 
     def __repr__(self):
         return f"QuamUser({self._core.path})"
 
     def __getattr__(self, item):
-        return _UserElementAccess(self.utils.elements.get(item), self.utils._element_context)
+        return _UserElementAccess(
+            self.utils.elements.get(item), self.utils._element_context
+        )
