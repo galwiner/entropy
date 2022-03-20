@@ -104,3 +104,6 @@ class _UserElementAccess(Munch):
             param.set_value(value)
         else:
             raise AttributeError(f"quam user can not set attribute {item} value")
+
+    def __repr__(self):
+        return super(_UserElementAccess, self).__getattr__("name")

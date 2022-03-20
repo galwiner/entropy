@@ -40,8 +40,8 @@ class QuamOracle:
     def checkout(
         self,
         commit_id: Optional[str] = None,
-            commit_num: Optional[int] = None,
-            move_by: Optional[int] = None,
+        commit_num: Optional[int] = None,
+        move_by: Optional[int] = None,
     ):
         return self._core.checkout(
             commit_id=commit_id, commit_num=commit_num, move_by=move_by

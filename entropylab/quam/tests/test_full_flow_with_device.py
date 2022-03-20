@@ -136,7 +136,11 @@ def oracle_part(oracle: QuamOracle, commit_id):
     assert commit_list[0].id == commit_id
     oracle.checkout(commit_id)  # make sure checkout from the oracle is possible.
 
-    assert set(oracle.element_names) == {"cont1", "xmon", "ror", }
+    assert set(oracle.element_names) == {
+        "cont1",
+        "xmon",
+        "ror",
+    }
 
     # TODO do we still have qua and non qua elements?
     # element can be non qua elements. maybe we need to rename. maybe this should be seperate from qua
@@ -192,10 +196,10 @@ def quam_user_part(quam: QuamUser, commit_id):
             #     (x for x in range(f_start, f_end, df)),
             #     interval_wait=0.1,
             # )
-            #TODO guy here i stopped
+            # TODO guy here i stopped
             update_frequency(quam.ror, f)
             measure(
-                quam.ror.pulses.readout_pulse,
+                quam.ror.pulses.readout_pulse,  # TODO maybe we should str() on qua side?
                 quam.ror,
                 None,
                 demod.full(quam.ror.integration_weights.w1, I, "out1"),

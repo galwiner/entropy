@@ -47,8 +47,16 @@ class Parameter:
         self.d["value"] = value
         if "setter" in self.d and self.d["setter"] is not None:
             p_setter = self.d["setter"]
-            if isinstance(p_setter, dict) and "type_cls" in p_setter and p_setter["type_cls"] == "FunctionInfo":
-                info = FunctionInfo(p_setter["_instrument_name"], p_setter["_function_name"], p_setter["_resource"])
+            if (
+                isinstance(p_setter, dict)
+                and "type_cls" in p_setter
+                and p_setter["type_cls"] == "FunctionInfo"
+            ):
+                info = FunctionInfo(
+                    p_setter["_instrument_name"],
+                    p_setter["_function_name"],
+                    p_setter["_resource"],
+                )
                 # TODO guy here should get the resources, but no context.
                 print("yey")
                 return value
@@ -143,11 +151,11 @@ def _config_builder_to_dict(obj, name):
             d[attr] = obj.quam_attributes[attr]
 
     if (
-            isinstance(obj, config_p_components.AnalogOutputPort)
-            or isinstance(obj, config_p_components.DigitalOutputPort)
-            or isinstance(obj, config_p_components.DigitalInputPort)
-            or isinstance(obj, config_p_components.AnalogOutputFilter)
-            or isinstance(obj, config_p_components.AnalogInputPort)
+        isinstance(obj, config_p_components.AnalogOutputPort)
+        or isinstance(obj, config_p_components.DigitalOutputPort)
+        or isinstance(obj, config_p_components.DigitalInputPort)
+        or isinstance(obj, config_p_components.AnalogOutputFilter)
+        or isinstance(obj, config_p_components.AnalogInputPort)
     ):
         d.update(obj.__dict__)
     elif isinstance(obj, config_components.MeasurePulse):
@@ -426,7 +434,9 @@ def _dict_to_config_builder(d: Dict, parameters: _QuamParameters) -> Any:
     elif d["type_cls"] == "MeasurePulse":
         return config_components.MeasurePulse(
             **_kwargs_from_dict(
-                d, ["name", "integration_weights", "length", "digital_marker", "wfs"], parameters
+                d,
+                ["name", "integration_weights", "length", "digital_marker", "wfs"],
+                parameters,
             ),
         )
     elif d["type_cls"] == "ControlPulse":
