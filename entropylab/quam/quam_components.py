@@ -5,7 +5,7 @@ import qualang_tools.config.components as config_components
 import qualang_tools.config.primitive_components as config_p_components
 from qualang_tools.config.parameters import _is_callable
 
-from entropylab.quam.instruments_wrappers import FunctionInfo
+from entropylab.quam.instruments_wrappers import FunctionRef, FunctionInfo
 
 
 class QuamElement(abc.ABC):
@@ -18,21 +18,14 @@ class QuamElement(abc.ABC):
 
 
 class Parameter:
-    def __init__(self, d: Dict):
+    def __init__(self, d: Dict, context):
         super(Parameter, self).__init__()
         self.d = d
+        self._context = context
 
     @property
     def name(self):
         return self.d["name"]
-
-    def __call__(self, *args, **kwargs):
-        if "setter" in self.d and self.d["setter"] is not None:
-            return self.d["setter"](*args, **kwargs)
-        elif self.d["is_value_set"]:
-            return self.d["value"]
-        else:
-            raise AssertionError(f"Parameter {self.name} is not set")
 
     @property
     def value(self):
@@ -46,29 +39,35 @@ class Parameter:
         self.d["is_value_set"] = True
         self.d["value"] = value
         if "setter" in self.d and self.d["setter"] is not None:
+            self.__call__(value, *args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        if "setter" in self.d and self.d["setter"] is not None:
             p_setter = self.d["setter"]
             if (
-                isinstance(p_setter, dict)
-                and "type_cls" in p_setter
-                and p_setter["type_cls"] == "FunctionInfo"
+                    isinstance(p_setter, dict)
+                    and "type_cls" in p_setter
+                    and p_setter["type_cls"] == "FunctionInfo"
             ):
                 info = FunctionInfo(
                     p_setter["_instrument_name"],
                     p_setter["_function_name"],
-                    p_setter["_resource"],
                 )
-                # TODO guy here should get the resources, but no context.
-                print("yey")
-                return value
+                return self._context.core.execute_on_resource(info, *args, **kwargs)
             else:
-                return p_setter(value, *args, **kwargs)
+                return p_setter(*args, **kwargs)
+        elif self.d["is_value_set"]:
+            return self.d["value"]
+        else:
+            raise ValueError(f"Parameter {self.name} is not set")
 
 
 class _QuamParameters(object):
-    def __init__(self, parameters: Optional[Dict] = None):
+    def __init__(self, parameters: Optional[Dict] = None, context=None):
         if parameters is None:
             parameters = {}
         self.parameters_dicts = parameters
+        self._context = context
 
     @staticmethod
     def _sanitize_name(name):
@@ -86,7 +85,7 @@ class _QuamParameters(object):
                 self.parameters_dicts[name]["initial"] = initial
                 self.parameters_dicts[name]["value"] = initial
             if setter is not None:
-                if isinstance(setter, FunctionInfo):
+                if isinstance(setter, FunctionRef):
                     self.parameters_dicts[name]["setter"] = setter
                     self.parameters_dicts[name]["is_set"] = True
                 elif _is_callable(setter):
@@ -109,7 +108,7 @@ class _QuamParameters(object):
         return self.parameters_dicts.keys()
 
     def get_config_var(self, name):
-        return Parameter(self.parameters_dicts[name])
+        return Parameter(self.parameters_dicts[name], self._context)
 
 
 class _QuamElements(object):

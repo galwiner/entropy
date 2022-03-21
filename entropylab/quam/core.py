@@ -1,6 +1,7 @@
 import dataclasses
 import os
 from json import JSONEncoder
+from types import MethodType
 from typing import Optional, Union, Dict, List
 
 from munch import Munch
@@ -14,7 +15,7 @@ from entropylab.api.in_process_param_store import (
     ParamStore,
     MergeStrategy,
 )
-from entropylab.quam.instruments_wrappers import FunctionInfo
+from entropylab.quam.instruments_wrappers import FunctionRef, FunctionInfo
 from entropylab.quam.quam_components import (
     _dict_to_config_builder,
     _QuamParameters,
@@ -31,7 +32,7 @@ _QOP_INFO = "_qop_info_"
 
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, FunctionInfo):
+        if isinstance(obj, FunctionRef):
             dic = obj.__dict__
             dic["type_cls"] = "FunctionInfo"
             return dic
@@ -58,6 +59,12 @@ class DatabaseWrapper:
 
     def list_commits(self, label: str):
         return self._param_store.list_commits(label)
+
+
+class _UserElementContext:
+    def __init__(self, core: '_QuamCore') -> None:
+        super().__init__()
+        self.core = core
 
 
 class _QuamCore:
@@ -88,7 +95,7 @@ class _QuamCore:
         if _PARAMETERS not in self._param_store:
             self._param_store[_PARAMETERS] = Munch()
 
-        self._parameters = _QuamParameters(self._param_store[_PARAMETERS])
+        self._parameters = _QuamParameters(self._param_store[_PARAMETERS], _UserElementContext(self))
         self._elements = _QuamElements(self._param_store[_ELEMENTS])
 
     @property
@@ -205,3 +212,15 @@ class _QuamCore:
 
     def get_current_commit(self) -> str:
         return self._param_store.commit_id
+
+    def execute_on_resource(self, info: FunctionInfo, *args, **kwargs):
+        def hasmethod(obj, name):
+            return hasattr(obj, name) and type(getattr(obj, name)) == MethodType
+
+        res = self._instruments_store.get_resource(info.instrument_name)
+        # TODO support multiple attrs?
+        if hasmethod(res, info.function_name):
+            attr = getattr(res, info.function_name)
+            attr(*args, **kwargs)
+        else:
+            setattr(res, info.function_name, *args, **kwargs)

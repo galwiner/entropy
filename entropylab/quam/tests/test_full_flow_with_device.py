@@ -45,6 +45,9 @@ def admin_part(admin: QuamAdmin):
     )
 
     xmon.add_quam_attribute("more info", "the right one")
+    xmon.add_quam_attribute("flux_sweep", admin.parameter(
+        "flux_sweep", setter=admin.instruments.flux_driver.sweep
+    ))
 
     admin.add(xmon)
 
@@ -100,6 +103,7 @@ def admin_part(admin: QuamAdmin):
     assert admin.user_parameters.list_names() == {
         "ro_duration",
         "flux_driver",
+        'flux_sweep',
         "ror_if",
         "xmon_lo",
         "ro_amp",
@@ -149,6 +153,7 @@ def oracle_part(oracle: QuamOracle, commit_id):
     assert oracle.integration_weights == ["w1", "w2"]
     assert set(oracle.user_params) == {
         "flux_driver",
+        'flux_sweep',
         "pi_wf_samples",
         "ro_amp",
         "ro_duration",
@@ -177,8 +182,8 @@ def quam_user_part(quam: QuamUser, commit_id):
     quam.utils.commit("flux sweep")
 
     # now start the experiment
-    # TODO:
-    # quam.elements.xmon.flux_channel(sweep=(start,stop,duration))#sets up an instrument
+    # quam.xmon.flux_channel(sweep=(start,stop,step))#sets up an instrument
+    quam.xmon.flux_sweep(0, 5, 1)  # sets up an instrument
 
     f_start = 10
     f_end = 20

@@ -1,14 +1,8 @@
 from munch import Munch
 
-from entropylab.quam.core import _QuamCore
-from entropylab.quam.instruments_wrappers import FunctionInfo
+from entropylab.quam.core import _UserElementContext
+from entropylab.quam.instruments_wrappers import FunctionRef
 from entropylab.quam.quam_components import Parameter
-
-
-class _UserElementContext:
-    def __init__(self, core: _QuamCore) -> None:
-        super().__init__()
-        self.core = core
 
 
 class _AdminElementAccess(Munch):
@@ -30,7 +24,7 @@ class _AdminElementAccess(Munch):
                     )
                 elif res["type_cls"] == "FunctionInfo":
                     # TODO make dict no serializer
-                    return FunctionInfo(
+                    return FunctionRef(
                         instrument_name=res["instrument_name"],
                         function_name=res["function_name"],
                         resource=res["resource"],
@@ -71,7 +65,7 @@ class _UserElementAccess(Munch):
                     )
                 elif res["type_cls"] == "FunctionInfo":
                     # TODO make dict no serializer
-                    return FunctionInfo(
+                    return FunctionRef(
                         instrument_name=res["instrument_name"],
                         function_name=res["function_name"],
                         resource=res["resource"],
@@ -96,11 +90,10 @@ class _UserElementAccess(Munch):
             and "type_cls" in res
             and res["type_cls"] == "UserParameter"
         ):
-            param: Parameter = (
-                super(_UserElementAccess, self)
-                .__getattr__("_context")
-                .core.get_user_parameter(name=res["name"])
+            context: _UserElementContext = super(_UserElementAccess, self).__getattr__(
+                "_context"
             )
+            param: Parameter = context.core.get_user_parameter(name=res["name"])
             param.set_value(value)
         else:
             raise AttributeError(f"quam user can not set attribute {item} value")

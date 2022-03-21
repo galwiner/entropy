@@ -1,9 +1,17 @@
+import dataclasses
+
 from munch import Munch
 
 from entropylab import LabResources
 
 
+@dataclasses.dataclass
 class FunctionInfo:
+    instrument_name: str
+    function_name: str
+
+
+class FunctionRef:
     _is_frozen = False
 
     def __init__(self, instrument_name: str, function_name: str, resource) -> None:
@@ -18,7 +26,7 @@ class FunctionInfo:
     def __getattr__(self, k):
         if self._is_frozen:
             # TODO check the function exists on the resource? if not, remove the resource from this class
-            return FunctionInfo(
+            return FunctionRef(
                 self._instrument_name, f"{self._function_name}.{k}", self._resource
             )
 
@@ -34,7 +42,7 @@ class InstrumentFunctionWrapper:
 
     def __getattr__(self, k):
         if self._is_frozen:
-            return FunctionInfo(self._name, k, self._resource)
+            return FunctionRef(self._name, k, self._resource)
 
     def __setattr__(self, k, v):
         if self._is_frozen:
