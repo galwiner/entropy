@@ -201,14 +201,16 @@ def quam_user_part(quam: QuamUser, commit_id):
             #     (x for x in range(f_start, f_end, df)),
             #     interval_wait=0.1,
             # )
-            # TODO guy here i stopped
-            update_frequency(quam.ror, f)
+            update_frequency(quam.ror.name, f)
             measure(
-                quam.ror.pulses.readout_pulse,  # TODO maybe we should str() on qua side?
-                quam.ror,
+                quam.ror.operations[0]["name"],  # TODO maybe we should str() on qua side?
+                #TODO: quam.ror.pulses.readout_pulse.name,  # TODO maybe we should str() on qua side?
+                quam.ror.name,
                 None,
-                demod.full(quam.ror.integration_weights.w1, I, "out1"),
-                demod.full(quam.ror.integration_weights.w2, Q, "out2"),
+                demod.full(quam.ror.operations[0]["pulse"]["integration_weights"][0]["name"], I, "out1"),
+                #TODO: demod.full(quam.ror.integration_weights.w1.name, I, "out1"),
+                demod.full(quam.ror.operations[0]["pulse"]["integration_weights"][1]["name"], Q, "out2"),
+                #TODO: demod.full(quam.ror.integration_weights.w2.name, Q, "out2"),
                 # TODO maybe add function that gets all iw from all elements - than it's all should be different
             )
             save(I, I_str)

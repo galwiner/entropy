@@ -3,7 +3,7 @@ from typing import List, Union, Tuple, Optional, Dict, Any
 
 import qualang_tools.config.components as config_components
 import qualang_tools.config.primitive_components as config_p_components
-from qualang_tools.config.parameters import _is_callable
+from qualang_tools.config.parameters import _is_callable, Parameter
 
 from entropylab.quam.instruments_wrappers import FunctionRef, FunctionInfo
 
@@ -17,9 +17,9 @@ class QuamElement(abc.ABC):
         self.quam_attributes[name] = value
 
 
-class Parameter:
+class QuamParameter:
     def __init__(self, d: Dict, context):
-        super(Parameter, self).__init__()
+        super(QuamParameter, self).__init__()
         self.d = d
         self._context = context
 
@@ -95,7 +95,7 @@ class _QuamParameters(object):
                     raise ValueError("setter format is not supported")
 
         # TODO check that no setter if it's already exist?
-        return self.get_config_var(name)
+        return self.get_parameter(name)
 
     def set(self, **kwargs):
         for name, value in kwargs.items():
@@ -107,8 +107,8 @@ class _QuamParameters(object):
     def get_names(self):
         return self.parameters_dicts.keys()
 
-    def get_config_var(self, name):
-        return Parameter(self.parameters_dicts[name], self._context)
+    def get_parameter(self, name):
+        return QuamParameter(self.parameters_dicts[name], self._context)
 
 
 class _QuamElements(object):
@@ -365,7 +365,10 @@ def _dict_to_config_builder(d: Dict, parameters: _QuamParameters) -> Any:
         return d
 
     if d["type_cls"] == "UserParameter":
-        return parameters.get_config_var(d["name"])
+        p = parameters.get_parameter(d["name"])
+        cbp = Parameter(p.name)
+        cbp.value = p.value
+        return cbp
     elif d["type_cls"] == "Controller":
         return config_components.Controller(
             name=d["name"],

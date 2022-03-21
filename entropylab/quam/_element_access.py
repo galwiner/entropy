@@ -2,7 +2,7 @@ from munch import Munch
 
 from entropylab.quam.core import _UserElementContext
 from entropylab.quam.instruments_wrappers import FunctionRef
-from entropylab.quam.quam_components import Parameter
+from entropylab.quam.quam_components import QuamParameter
 
 
 class _AdminElementAccess(Munch):
@@ -93,7 +93,7 @@ class _UserElementAccess(Munch):
             context: _UserElementContext = super(_UserElementAccess, self).__getattr__(
                 "_context"
             )
-            param: Parameter = context.core.get_user_parameter(name=res["name"])
+            param: QuamParameter = context.core.get_user_parameter(name=res["name"])
             param.set_value(value)
         else:
             raise AttributeError(f"quam user can not set attribute {item} value")

@@ -187,7 +187,7 @@ class _QuamCore:
         }
 
     def get_user_parameter(self, name):
-        return self._parameters.get_config_var(name)
+        return self._parameters.get_parameter(name)
 
     def set_qop(self, arg, host, port):
         def _set_qop_info(_host, _port):
